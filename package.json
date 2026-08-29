@@ -1,0 +1,14 @@
+{
+  "name": "bodymake-contest-nicolive-ranking",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Akashic Engine ranking game for Niconico Live",
+  "scripts": {
+    "start": "akashic serve . -B",
+    "preview": "akashic sandbox .",
+    "test": "node --check script/main.js && node --check script/title.js && node --check script/loading.js"
+  },
+  "dependencies": {
+    "@akashic-extension/instance-storage": "^1.0.0"
+  }
+}

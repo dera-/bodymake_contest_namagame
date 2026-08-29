@@ -1,0 +1,600 @@
+{
+	"width": 1280,
+	"height": 720,
+	"fps": 30,
+	"renderer": [
+		"webgl",
+		"canvas"
+	],
+	"main": "./script/main.js",
+	"assets": {
+		"script/main.js": {
+			"type": "script",
+			"path": "script/main.js",
+			"global": true
+		},
+		"script/title.js": {
+			"type": "script",
+			"path": "script/title.js",
+			"global": true
+		},
+		"script/loading.js": {
+			"type": "script",
+			"path": "script/loading.js",
+			"global": true
+		},
+		"image/characters/champion/back.png": {
+			"type": "image",
+			"path": "image/characters/champion/back.png",
+			"width": 768,
+			"height": 288
+		},
+		"image/characters/champion/front.png": {
+			"type": "image",
+			"path": "image/characters/champion/front.png",
+			"width": 768,
+			"height": 288
+		},
+		"image/characters/champion/idle.png": {
+			"type": "image",
+			"path": "image/characters/champion/idle.png",
+			"width": 768,
+			"height": 288
+		},
+		"image/characters/champion/smile.png": {
+			"type": "image",
+			"path": "image/characters/champion/smile.png",
+			"width": 768,
+			"height": 288
+		},
+		"image/characters/champion/special.png": {
+			"type": "image",
+			"path": "image/characters/champion/special.png",
+			"width": 768,
+			"height": 288
+		},
+		"image/characters/champion/walk.png": {
+			"type": "image",
+			"path": "image/characters/champion/walk.png",
+			"width": 768,
+			"height": 288
+		},
+		"image/characters/hero/back.png": {
+			"type": "image",
+			"path": "image/characters/hero/back.png",
+			"width": 768,
+			"height": 288
+		},
+		"image/characters/hero/front.png": {
+			"type": "image",
+			"path": "image/characters/hero/front.png",
+			"width": 768,
+			"height": 288
+		},
+		"image/characters/hero/idle.png": {
+			"type": "image",
+			"path": "image/characters/hero/idle.png",
+			"width": 768,
+			"height": 288
+		},
+		"image/characters/hero/smile.png": {
+			"type": "image",
+			"path": "image/characters/hero/smile.png",
+			"width": 768,
+			"height": 288
+		},
+		"image/characters/hero/special.png": {
+			"type": "image",
+			"path": "image/characters/hero/special.png",
+			"width": 768,
+			"height": 288
+		},
+		"image/characters/hero/walk.png": {
+			"type": "image",
+			"path": "image/characters/hero/walk.png",
+			"width": 768,
+			"height": 288
+		},
+		"image/characters/mob_blue/back.png": {
+			"type": "image",
+			"path": "image/characters/mob_blue/back.png",
+			"width": 768,
+			"height": 288
+		},
+		"image/characters/mob_blue/front.png": {
+			"type": "image",
+			"path": "image/characters/mob_blue/front.png",
+			"width": 768,
+			"height": 288
+		},
+		"image/characters/mob_blue/idle.png": {
+			"type": "image",
+			"path": "image/characters/mob_blue/idle.png",
+			"width": 768,
+			"height": 288
+		},
+		"image/characters/mob_blue/smile.png": {
+			"type": "image",
+			"path": "image/characters/mob_blue/smile.png",
+			"width": 768,
+			"height": 288
+		},
+		"image/characters/mob_blue/walk.png": {
+			"type": "image",
+			"path": "image/characters/mob_blue/walk.png",
+			"width": 768,
+			"height": 288
+		},
+		"image/characters/mob_green/back.png": {
+			"type": "image",
+			"path": "image/characters/mob_green/back.png",
+			"width": 768,
+			"height": 288
+		},
+		"image/characters/mob_green/front.png": {
+			"type": "image",
+			"path": "image/characters/mob_green/front.png",
+			"width": 768,
+			"height": 288
+		},
+		"image/characters/mob_green/idle.png": {
+			"type": "image",
+			"path": "image/characters/mob_green/idle.png",
+			"width": 768,
+			"height": 288
+		},
+		"image/characters/mob_green/smile.png": {
+			"type": "image",
+			"path": "image/characters/mob_green/smile.png",
+			"width": 768,
+			"height": 288
+		},
+		"image/characters/mob_green/walk.png": {
+			"type": "image",
+			"path": "image/characters/mob_green/walk.png",
+			"width": 768,
+			"height": 288
+		},
+		"image/characters/mob_purple/back.png": {
+			"type": "image",
+			"path": "image/characters/mob_purple/back.png",
+			"width": 768,
+			"height": 288
+		},
+		"image/characters/mob_purple/front.png": {
+			"type": "image",
+			"path": "image/characters/mob_purple/front.png",
+			"width": 768,
+			"height": 288
+		},
+		"image/characters/mob_purple/idle.png": {
+			"type": "image",
+			"path": "image/characters/mob_purple/idle.png",
+			"width": 768,
+			"height": 288
+		},
+		"image/characters/mob_purple/smile.png": {
+			"type": "image",
+			"path": "image/characters/mob_purple/smile.png",
+			"width": 768,
+			"height": 288
+		},
+		"image/characters/mob_purple/walk.png": {
+			"type": "image",
+			"path": "image/characters/mob_purple/walk.png",
+			"width": 768,
+			"height": 288
+		},
+		"image/characters/rival/back.png": {
+			"type": "image",
+			"path": "image/characters/rival/back.png",
+			"width": 768,
+			"height": 288
+		},
+		"image/characters/rival/front.png": {
+			"type": "image",
+			"path": "image/characters/rival/front.png",
+			"width": 768,
+			"height": 288
+		},
+		"image/characters/rival/idle.png": {
+			"type": "image",
+			"path": "image/characters/rival/idle.png",
+			"width": 768,
+			"height": 288
+		},
+		"image/characters/rival/smile.png": {
+			"type": "image",
+			"path": "image/characters/rival/smile.png",
+			"width": 768,
+			"height": 288
+		},
+		"image/characters/rival/special.png": {
+			"type": "image",
+			"path": "image/characters/rival/special.png",
+			"width": 768,
+			"height": 288
+		},
+		"image/characters/rival/walk.png": {
+			"type": "image",
+			"path": "image/characters/rival/walk.png",
+			"width": 768,
+			"height": 288
+		},
+		"stage_final": {
+			"type": "image",
+			"path": "image/backgrounds/stage_final.png",
+			"width": 986,
+			"height": 396
+		},
+		"stage_preliminary": {
+			"type": "image",
+			"path": "image/backgrounds/stage_preliminary.png",
+			"width": 986,
+			"height": 396
+		},
+		"stage_semifinal": {
+			"type": "image",
+			"path": "image/backgrounds/stage_semifinal.png",
+			"width": 986,
+			"height": 396
+		},
+		"title_backdrop": {
+			"type": "image",
+			"path": "image/ui/title/title_backdrop.png",
+			"width": 1280,
+			"height": 720
+		},
+		"speech_bubble": {
+			"type": "image",
+			"path": "image/ui/title/speech_bubble.png",
+			"width": 610,
+			"height": 183
+		},
+		"loading_pushup": {
+			"type": "image",
+			"path": "image/ui/loading/pushup_loading.png",
+			"width": 800,
+			"height": 240,
+			"global": true
+		},
+		"title_logo": {
+			"type": "image",
+			"path": "image/ui/title_logo.png",
+			"width": 1200,
+			"height": 675
+		},
+		"action_back": {
+			"type": "image",
+			"path": "image/ui/action_back.png",
+			"width": 96,
+			"height": 96
+		},
+		"action_front": {
+			"type": "image",
+			"path": "image/ui/action_front.png",
+			"width": 96,
+			"height": 96
+		},
+		"action_smile": {
+			"type": "image",
+			"path": "image/ui/action_smile.png",
+			"width": 96,
+			"height": 96
+		},
+		"action_walk": {
+			"type": "image",
+			"path": "image/ui/action_walk.png",
+			"width": 96,
+			"height": 96
+		},
+		"judge_expression": {
+			"type": "image",
+			"path": "image/ui/judge_expression.png",
+			"width": 96,
+			"height": 120
+		},
+		"judge_style": {
+			"type": "image",
+			"path": "image/ui/judge_style.png",
+			"width": 96,
+			"height": 120
+		},
+		"judge_walk": {
+			"type": "image",
+			"path": "image/ui/judge_walk.png",
+			"width": 96,
+			"height": 120
+		},
+		"rank_1": {
+			"type": "image",
+			"path": "image/ui/ranks/rank_1.png",
+			"width": 80,
+			"height": 80
+		},
+		"rank_2": {
+			"type": "image",
+			"path": "image/ui/ranks/rank_2.png",
+			"width": 80,
+			"height": 80
+		},
+		"rank_3": {
+			"type": "image",
+			"path": "image/ui/ranks/rank_3.png",
+			"width": 80,
+			"height": 80
+		},
+		"rank_4": {
+			"type": "image",
+			"path": "image/ui/ranks/rank_4.png",
+			"width": 80,
+			"height": 80
+		},
+		"rank_5": {
+			"type": "image",
+			"path": "image/ui/ranks/rank_5.png",
+			"width": 80,
+			"height": 80
+		},
+		"rank_6": {
+			"type": "image",
+			"path": "image/ui/ranks/rank_6.png",
+			"width": 80,
+			"height": 80
+		},
+		"portrait_hero_bust": {
+			"type": "image",
+			"path": "image/portraits/hero_bust.png",
+			"width": 312,
+			"height": 390
+		},
+		"portrait_hero_bust_happy": {
+			"type": "image",
+			"path": "image/portraits/hero_bust_happy.png",
+			"width": 312,
+			"height": 390
+		},
+		"portrait_hero_bust_frustrated": {
+			"type": "image",
+			"path": "image/portraits/hero_bust_frustrated.png",
+			"width": 312,
+			"height": 390
+		},
+		"portrait_hero_special": {
+			"type": "image",
+			"path": "image/portraits/hero_special.png",
+			"width": 368,
+			"height": 460
+		},
+		"portrait_champion_special": {
+			"type": "image",
+			"path": "image/portraits/champion_special.png",
+			"width": 368,
+			"height": 460
+		},
+		"portrait_rival_special": {
+			"type": "image",
+			"path": "image/portraits/rival_special.png",
+			"width": 368,
+			"height": 460
+		},
+		"timing_bad": {
+			"type": "image",
+			"path": "image/ui/timing/timing_bad.png",
+			"width": 128,
+			"height": 28
+		},
+		"timing_normal": {
+			"type": "image",
+			"path": "image/ui/timing/timing_normal.png",
+			"width": 128,
+			"height": 28
+		},
+		"timing_good": {
+			"type": "image",
+			"path": "image/ui/timing/timing_good.png",
+			"width": 128,
+			"height": 28
+		},
+		"timing_perfect": {
+			"type": "image",
+			"path": "image/ui/timing/timing_perfect.png",
+			"width": 128,
+			"height": 28
+		},
+		"timing_frame": {
+			"type": "image",
+			"path": "image/ui/timing/timing_frame.png",
+			"width": 950,
+			"height": 42
+		},
+		"timing_cursor": {
+			"type": "image",
+			"path": "image/ui/timing/timing_cursor.png",
+			"width": 24,
+			"height": 48
+		},
+		"result_perfect": {
+			"type": "image",
+			"path": "image/ui/results/result_perfect.png",
+			"width": 240,
+			"height": 64
+		},
+		"result_good": {
+			"type": "image",
+			"path": "image/ui/results/result_good.png",
+			"width": 240,
+			"height": 64
+		},
+		"result_normal": {
+			"type": "image",
+			"path": "image/ui/results/result_normal.png",
+			"width": 240,
+			"height": 64
+		},
+		"result_bad": {
+			"type": "image",
+			"path": "image/ui/results/result_bad.png",
+			"width": 240,
+			"height": 64
+		},
+		"result_miss": {
+			"type": "image",
+			"path": "image/ui/results/result_miss.png",
+			"width": 240,
+			"height": 64
+		},
+		"game_font_atlas": {
+			"type": "image",
+			"path": "image/ui/font/rounded_mplus_1c_medium.png",
+			"width": 896,
+			"height": 1344
+		},
+		"game_font_map": {
+			"type": "text",
+			"path": "text/rounded_mplus_1c_medium_map.json"
+		},
+		"font_license": {
+			"type": "text",
+			"path": "tools/fonts/rounded-mplus-1c/OFL.txt"
+		},
+		"bgm_opening": {
+			"type": "audio",
+			"path": "audio/bgm_opening",
+			"systemId": "music",
+			"loop": true,
+			"duration": 164054
+		},
+		"bgm_preliminary": {
+			"type": "audio",
+			"path": "audio/bgm_preliminary",
+			"systemId": "music",
+			"loop": false,
+			"duration": 90000
+		},
+		"bgm_semifinal": {
+			"type": "audio",
+			"path": "audio/bgm_semifinal",
+			"systemId": "music",
+			"loop": false,
+			"duration": 90000
+		},
+		"bgm_final": {
+			"type": "audio",
+			"path": "audio/bgm_final",
+			"systemId": "music",
+			"loop": false,
+			"duration": 90000
+		},
+		"me_victory": {
+			"type": "audio",
+			"path": "audio/me_victory",
+			"systemId": "sound",
+			"duration": 5806
+		},
+		"me_defeat": {
+			"type": "audio",
+			"path": "audio/me_defeat",
+			"systemId": "sound",
+			"duration": 4000
+		},
+		"se_timing_perfect": {
+			"type": "audio",
+			"path": "audio/se/se_timing_perfect",
+			"systemId": "sound",
+			"duration": 1800
+		},
+		"se_timing_good": {
+			"type": "audio",
+			"path": "audio/se/se_timing_good",
+			"systemId": "sound",
+			"duration": 989
+		},
+		"se_timing_normal": {
+			"type": "audio",
+			"path": "audio/se/se_timing_normal",
+			"systemId": "sound",
+			"duration": 997
+		},
+		"se_timing_bad": {
+			"type": "audio",
+			"path": "audio/se/se_timing_bad",
+			"systemId": "sound",
+			"duration": 912
+		},
+		"se_miss": {
+			"type": "audio",
+			"path": "audio/se/se_miss",
+			"systemId": "sound",
+			"duration": 1741
+		},
+		"se_voltage_max": {
+			"type": "audio",
+			"path": "audio/se/se_voltage_max",
+			"systemId": "sound",
+			"duration": 2800
+		},
+		"se_special_player": {
+			"type": "audio",
+			"path": "audio/se/se_special_player",
+			"systemId": "sound",
+			"duration": 1730
+		},
+		"se_special_opponent": {
+			"type": "audio",
+			"path": "audio/se/se_special_opponent",
+			"systemId": "sound",
+			"duration": 2400
+		},
+		"se_judge_leave": {
+			"type": "audio",
+			"path": "audio/se/se_judge_leave",
+			"systemId": "sound",
+			"duration": 1250
+		},
+		"se_judge_add": {
+			"type": "audio",
+			"path": "audio/se/se_judge_add",
+			"systemId": "sound",
+			"duration": 1250
+		},
+		"se_turn_start": {
+			"type": "audio",
+			"path": "audio/se/se_turn_start",
+			"systemId": "sound",
+			"duration": 1732
+		}
+	},
+	"environment": {
+		"sandbox-runtime": "3",
+		"nicolive": {
+			"supportedModes": [
+				"ranking"
+			],
+			"preferredSessionParameters": {
+				"totalTimeLimit": 150
+			}
+		},
+		"external": {
+			"instanceStorageLimited": "0"
+		}
+	},
+	"defaultLoadingScene": "none",
+	"globalScripts": [
+		"node_modules/@akashic-extension/instance-storage/lib/impl/EmptyInstanceStoragePlugin.js",
+		"node_modules/@akashic-extension/instance-storage/lib/impl/InstanceStorage.js",
+		"node_modules/@akashic-extension/instance-storage/lib/impl/create.js",
+		"node_modules/@akashic-extension/instance-storage/lib/impl/index.js",
+		"node_modules/@akashic-extension/instance-storage/lib/impl/promisify.js",
+		"node_modules/@akashic-extension/instance-storage/lib/index.js",
+		"node_modules/@akashic-extension/instance-storage/lib/types/InstanceStorageLike.js",
+		"node_modules/@akashic-extension/instance-storage/lib/types/InstanceStorageLimitedPluginLike.js",
+		"node_modules/@akashic-extension/instance-storage/lib/types/PromisifiedInstanceStorageLike.js",
+		"node_modules/@akashic-extension/instance-storage/lib/types/index.js"
+	],
+	"moduleMainScripts": {
+		"@akashic-extension/instance-storage": "node_modules/@akashic-extension/instance-storage/lib/index.js",
+		"bodymake-title": "script/title.js",
+		"bodymake-loading": "script/loading.js"
+	}
+}

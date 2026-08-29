@@ -1,0 +1,5 @@
+node_modules
+tmp
+tools
+*.zip
+spec
