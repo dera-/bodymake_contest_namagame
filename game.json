@@ -572,7 +572,7 @@
 				"ranking"
 			],
 			"preferredSessionParameters": {
-				"totalTimeLimit": 150
+				"totalTimeLimit": 130
 			}
 		},
 		"external": {
