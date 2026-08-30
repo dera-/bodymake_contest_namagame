@@ -228,16 +228,16 @@ function createTitleUi(param) {
 	rect(rulesPage, 45, 26, 1190, 5, "#ff4fa3", 1);
 	rect(rulesPage, 45, 671, 1190, 5, "#54d9ff", 1);
 	label(rulesPage, "ルール説明", 640, 43, 42, "#fff", { anchorX: 0.5 });
-	label(rulesPage, "他の競技者より高い評価を集めて、選んだステージのクリア順位を目指そう", 640, 93, 24, "#ffd85d", { anchorX: 0.5 });
+	label(rulesPage, "90秒でスコアを競い、クリア順位を目指そう", 640, 93, 24, "#ffd85d", { anchorX: 0.5 });
 
 	const objective = framedPanel(rulesPage, 75, 132, 360, 178, "#111021", "#ff4fa3");
 	label(objective, "1  目的", 22, 14, 30, "#ff6ab2");
 	objective.append(new g.Sprite({ scene: scene, src: scene.asset.getImageById("rank_1"), srcWidth: 80, srcHeight: 80, x: 22, y: 64, width: 72, height: 72 }));
-	label(objective, "6人のランキング戦\n予選3位 / 準決勝2位\n決勝1位でクリア", 112, 64, 24, "#fff", { width: 225, lineBreak: true });
+	label(objective, "予選 3位以内\n準決勝 2位以内\n決勝 1位", 112, 64, 24, "#fff", { width: 225, lineBreak: true });
 
 	const operation = framedPanel(rulesPage, 455, 132, 750, 178, "#111021", "#54d9ff");
 	label(operation, "2  操作", 22, 14, 30, "#54d9ff");
-	label(operation, "カーソルに合わせてアクションボタンをタップ", 22, 54, 24, "#fff");
+	label(operation, "カーソルを見て、アクションを1つタップ", 22, 54, 24, "#fff");
 	const ruleActions = ["action_front", "action_back", "action_walk", "action_smile"];
 	const ruleNames = ["FRONT", "BACK", "WALK", "SMILE"];
 	for (let i = 0; i < ruleActions.length; ++i) {
@@ -248,19 +248,19 @@ function createTitleUi(param) {
 	const judging = framedPanel(rulesPage, 75, 330, 735, 250, "#111021", "#c178ff");
 	label(judging, "3  審査について", 22, 14, 30, "#c178ff");
 	const judgeIcons = ["judge_style", "judge_walk", "judge_expression"];
-	const judgeTexts = ["FRONT / BACK\nスタイルに有利", "WALK\nウォークに有利", "SMILE\n表現力に有利"];
+	const judgeTexts = ["FRONT・BACK\nスタイル", "WALK\nウォーク", "SMILE\n表現力"];
 	for (let i = 0; i < 3; ++i) {
 		judging.append(new g.Sprite({ scene: scene, src: scene.asset.getImageById(judgeIcons[i]), srcWidth: 96, srcHeight: 120, x: 22 + i * 235, y: 64, width: 62, height: 78 }));
 		label(judging, judgeTexts[i], 91 + i * 235, 71, 24, "#fff", { width: 138, lineBreak: true });
 	}
-	label(judging, "審査傾向順位が高いものを選ぶと有利\n(ただし毎ターン変わる)\nゲージが0になると交代が発生し、\n交代中は審査されないので注意", 22, 145, 24, "#ffd85d", { lineHeight: 25 });
+	label(judging, "審査傾向の上位アクションが有利 (毎ターン変わる)\nゲージ0で交代。交代中は審査なし", 22, 158, 24, "#ffd85d", { lineHeight: 30 });
 
 	const special = framedPanel(rulesPage, 830, 330, 375, 250, "#111021", "#ffd85d");
 	label(special, "4  SPECIAL", 22, 14, 30, "#ffd85d");
 	rect(special, 25, 67, 325, 24, "#2b2030", 1);
 	rect(special, 29, 71, 317, 16, "#ffd85d", 1);
 	label(special, "VOLTAGE 100%で発動", 25, 105, 24, "#fff");
-	label(special, "全審査へ強力アピール！\nBADとMISSでは増えない", 25, 140, 24, "#ffdf8a", { width: 325, lineBreak: true });
+	label(special, "全審査へ強力アピール\nBAD・MISSでは増えない", 25, 140, 24, "#ffdf8a", { width: 325, lineBreak: true });
 
 	button(rulesPage, 470, 604, 340, 62, "タイトルへ戻る", "#ff4fa3", function () {
 		playSelectSe();
