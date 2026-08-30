@@ -261,8 +261,8 @@
 		"title_logo": {
 			"type": "image",
 			"path": "image/ui/title_logo.png",
-			"width": 1200,
-			"height": 675
+			"width": 600,
+			"height": 338
 		},
 		"action_back": {
 			"type": "image",

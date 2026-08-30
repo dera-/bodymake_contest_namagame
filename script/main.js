@@ -24,7 +24,7 @@ const STAGE_CONFIGS = [
 	},
 	{
 		name: "決勝", difficulty: "難しい", background: "stage_final", bgm: "bgm_final",
-		clearRank: 1, scoreMultiplier: 4, aiPower: 1.03, aiAdapt: 1.15, aiTimingError: 0.72, timingSpeed: 1.00,
+		clearRank: 1, scoreMultiplier: 5, aiPower: 1.03, aiAdapt: 1.15, aiTimingError: 0.72, timingSpeed: 1.00,
 		perfectWidth: 1.00, goodWidth: 1.00, normalWidth: 1.00, judgeGauge: 0.92,
 		aiVoltage: [0, 0, 0, 0, 85, 98], aiVoltageGain: 1.40, aiSpecialMax: [0, 0, 0, 0, 3, 3],
 		aiSpecialTurns: [[], [], [], [], [6, 12, 18], [3, 9, 15]]
@@ -465,7 +465,9 @@ function main(param) {
 		const actionUi = [];
 		for (let i = 0; i < 4; ++i) {
 			const x = 28 + i * 236;
-			const button = new g.E({ scene: scene, x: x, y: 35, width: 220, height: 78, touchable: true });
+			// The visual remains 220px wide, while the touch target also covers the
+			// 16px gap to the next button. This prevents tiny dead zones on phones.
+			const button = new g.E({ scene: scene, x: x, y: 35, width: 236, height: 80, touchable: true });
 			const base = new g.FilledRect({ scene: scene, width: 220, height: 78, cssColor: actions[i].color, opacity: 0.78 });
 			button.append(base);
 			button.append(new g.FilledRect({ scene: scene, width: 10, height: 78, cssColor: "#fff", opacity: 0.9 }));
@@ -477,20 +479,19 @@ function main(param) {
 				x: 16, y: 11, width: 54, height: 54
 			}));
 			createLabel(scene, button, f30, actions[i].label, 137, 2, "#fff", { anchorX: 0.5 });
-			const advantage = createLabel(scene, button, f16, actions[i].advantage, 78, 43, C.gold, { width: 68, textAlign: g.TextAlign.Center });
+			createLabel(scene, button, f16, actions[i].advantage, 78, 43, C.gold, { width: 68, textAlign: g.TextAlign.Center });
 			const repeatBadge = new g.Pane({ scene: scene, x: 146, y: 42, width: 70, height: 32, opacity: 0 });
 			repeatBadge.append(new g.FilledRect({ scene: scene, width: 70, height: 32, cssColor: "#09050d" }));
 			button.append(repeatBadge);
 			const repeat = createLabel(scene, repeatBadge, f16, "", 0, 2, C.danger, { width: 70, textAlign: g.TextAlign.Center });
 			controls.append(button);
-			actionUi.push({ button: button, base: base, advantage: advantage, repeatBadge: repeatBadge, repeat: repeat });
+			actionUi.push({ button: button, base: base, repeatBadge: repeatBadge, repeat: repeat });
 		}
 		const specialButton = new g.E({ scene: scene, x: 28, y: 35, width: 930, height: 78, touchable: true, hidden: true });
-		const specialButtonBase = new g.FilledRect({ scene: scene, width: 930, height: 78, cssColor: C.gold, opacity: 0.94 });
-		specialButton.append(specialButtonBase);
+		specialButton.append(new g.FilledRect({ scene: scene, width: 930, height: 78, cssColor: C.gold, opacity: 0.94 }));
 		specialButton.append(new g.FilledRect({ scene: scene, width: 12, height: 78, cssColor: "#fff" }));
 		specialButton.append(new g.FilledRect({ scene: scene, x: 12, width: 918, height: 4, cssColor: "#fff" }));
-		const specialButtonLabel = createLabel(scene, specialButton, f42, "SPECIAL", 465, 11, "#4a2200", { anchorX: 0.5 });
+		createLabel(scene, specialButton, f42, "SPECIAL", 465, 11, "#4a2200", { anchorX: 0.5 });
 		controls.append(specialButton);
 
 		// Every SPECIAL owns its cut-in and aura. This prevents a simultaneous
@@ -521,12 +522,13 @@ function main(param) {
 			return { level: 1, max: gauge, left: gauge, totals: [0, 0, 0, 0, 0, 0], top: -1, closed: false };
 		});
 		let scores = [0, 0, 0, 0, 0, 0];
+		let rankingCache = [0, 1, 2, 3, 4, 5], rankingDirty = true;
 		let phase = "title", readyLeft = 3, turn = 0, turnElapsed = 0;
 		let trends = makeTrends(), nextTrends = makeTrends(), plans = [];
 		let playerActed = true, playerSpecialTurn = false, turnFirst = -1, midpointCommented = false;
 		let playerVoltage = 0, playerSpecials = 0, combo = 0;
 		let lastPlayerAction = -1, repeatCount = 0, recentActions = [], varietyCooldown = 0;
-		let selectedPlayerAction = -1, cursorHoldPosition = 0, lastTurnMiss = false;
+		let selectedPlayerAction = -1, cursorHoldPosition = 0, cursorLivePosition = 0, lastTurnMiss = false;
 		let turnFxLeft = 0, scoreSaved = false;
 		let aiSpecialCounts = [0, 0, 0, 0, 0, 0];
 		let titleLayer = null;
@@ -540,16 +542,26 @@ function main(param) {
 		const scoreTransferStates = [];
 		const actionResultStates = [];
 		const judgeScoreStates = [];
+		const scoreTransferPool = [];
+		const actionResultPool = [];
+		const judgeScorePool = [];
 
 		function makeTrends() {
 			const order = shuffle([0, 1, 2], random), v = [1, 1, 1];
 			v[order[0]] = 1.5; v[order[1]] = 1.2; return v;
 		}
-		function ranking() { return [0, 1, 2, 3, 4, 5].sort(function (a, b) { return scores[b] - scores[a] || a - b; }); }
+		function ranking() {
+			if (rankingDirty) {
+				rankingCache.sort(function (a, b) { return scores[b] - scores[a] || a - b; });
+				rankingDirty = false;
+			}
+			return rankingCache;
+		}
 		function liveRankingScore() { return Math.max(0, Math.floor(scores[0] * currentStage.scoreMultiplier)); }
 		function syncLiveRankingScore() { g.game.vars.gameState.score = liveRankingScore(); }
 		function addActorScore(actorIndex, value) {
 			scores[actorIndex] += value;
+			rankingDirty = true;
 			if (actorIndex === 0) syncLiveRankingScore();
 		}
 		function clearCoefficient(playerRank) {
@@ -572,16 +584,34 @@ function main(param) {
 			while (fitted.length > 1 && measureGameText(fitted + "...", 24) > maxWidth) fitted = fitted.slice(0, -1);
 			return fitted + "...";
 		}
+		function updateLabel(label, text, color) {
+			let changed = false;
+			if (label.text !== text) { label.text = text; changed = true; }
+			if (color != null && label.textColor !== color) { label.textColor = color; changed = true; }
+			if (changed) label.invalidate();
+		}
+		function updateRectWidth(rect, width) {
+			if (rect.width === width) return;
+			rect.width = width;
+			rect.modified();
+		}
+		function updateOpacity(entity, opacity) {
+			if (entity.opacity === opacity) return;
+			entity.opacity = opacity;
+			entity.modified();
+		}
+		function updateVisibility(entity, visible) {
+			if (entity.visible() === visible) return;
+			if (visible) entity.show();
+			else entity.hide();
+		}
 		function setMessage(text) {
-			eventLabel.text = fitEventMessage(text);
-			eventLabel.invalidate();
+			updateLabel(eventLabel, fitEventMessage(text));
 		}
 		function setStageAppearance() {
-			stageBackground.src = scene.asset.getImageById(currentStage.background);
-			stageBackground.modified();
-			stagePhaseLabel.text = currentStage.name;
-			stagePhaseLabel.textColor = "#fff";
-			stagePhaseLabel.invalidate();
+			const background = scene.asset.getImageById(currentStage.background);
+			if (stageBackground.src !== background) { stageBackground.src = background; stageBackground.modified(); }
+			updateLabel(stagePhaseLabel, currentStage.name, "#fff");
 		}
 		function showTurnStart() {
 			turnFxLabel.text = "TURN " + turn;
@@ -704,7 +734,7 @@ function main(param) {
 
 		function startTurn() {
 			++turn; turnElapsed = 0; playerActed = false; turnFirst = -1; midpointCommented = false;
-			selectedPlayerAction = -1; cursorHoldPosition = 0;
+			selectedPlayerAction = -1; cursorHoldPosition = 0; cursorLivePosition = 0;
 			rotateClosedJudges(); trends = nextTrends; nextTrends = makeTrends();
 			setStageAppearance();
 			showTurnStart();
@@ -744,13 +774,13 @@ function main(param) {
 			stopOpeningBgm();
 			if (titleLayer) titleLayer.hide();
 
-			scores = [0, 0, 0, 0, 0, 0];
+			scores = [0, 0, 0, 0, 0, 0]; rankingCache = [0, 1, 2, 3, 4, 5]; rankingDirty = true;
 			turn = 0; turnElapsed = 0; readyLeft = 3;
 			trends = makeTrends(); nextTrends = makeTrends(); plans = [];
 			playerActed = true; playerSpecialTurn = false; turnFirst = -1; midpointCommented = false;
 			setPlayerVoltage(0); playerSpecials = 0; combo = 0; timingDifficulty = 0;
 			lastPlayerAction = -1; repeatCount = 0; recentActions = []; varietyCooldown = 0;
-			selectedPlayerAction = -1; cursorHoldPosition = 0; lastTurnMiss = false;
+			selectedPlayerAction = -1; cursorHoldPosition = 0; cursorLivePosition = 0; lastTurnMiss = false;
 			turnFxLeft = 0; scoreSaved = false; aiSpecialCounts = [0, 0, 0, 0, 0, 0];
 			g.game.vars.gameState.score = 0;
 
@@ -796,12 +826,21 @@ function main(param) {
 			const startY = 132;
 			const endX = 12 + actorX[actorIndex] + 50;
 			const endY = 356;
-			const fx = new g.E({ scene: scene, x: startX - 48, y: startY, width: 96, height: 30 });
-			fx.append(new g.FilledRect({ scene: scene, x: 2, y: 7, width: 16, height: 16, cssColor: axes[judgeIndex].color, angle: 45, opacity: 0.95 }));
-			fx.append(new g.FilledRect({ scene: scene, x: 5, y: 10, width: 10, height: 10, cssColor: "#fff", angle: 45, opacity: 0.9 }));
-			createLabel(scene, fx, f16, "+" + value, 24, 2, axes[judgeIndex].color);
-			scene.append(fx);
-			scoreTransferStates.push({ entity: fx, left: 0.72, startX: startX - 48, startY: startY, endX: endX - 48, endY: endY });
+			let fx = scoreTransferPool.pop();
+			if (!fx) {
+				const entity = new g.E({ scene: scene, width: 96, height: 30 });
+				const marker = new g.FilledRect({ scene: scene, x: 2, y: 7, width: 16, height: 16, cssColor: axes[judgeIndex].color, angle: 45, opacity: 0.95 });
+				entity.append(marker);
+				entity.append(new g.FilledRect({ scene: scene, x: 5, y: 10, width: 10, height: 10, cssColor: "#fff", angle: 45, opacity: 0.9 }));
+				const label = createLabel(scene, entity, f16, "", 24, 2, axes[judgeIndex].color);
+				scene.append(entity);
+				fx = { entity: entity, marker: marker, label: label };
+			}
+			fx.entity.x = startX - 48; fx.entity.y = startY; fx.entity.opacity = 1; if (!fx.entity.visible()) fx.entity.show(); fx.entity.modified();
+			if (fx.marker.cssColor !== axes[judgeIndex].color) { fx.marker.cssColor = axes[judgeIndex].color; fx.marker.modified(); }
+			updateLabel(fx.label, "+" + value, axes[judgeIndex].color);
+			fx.left = 0.72; fx.startX = startX - 48; fx.startY = startY; fx.endX = endX - 48; fx.endY = endY;
+			scoreTransferStates.push(fx);
 		}
 
 		function applyActorAppeal(actorIndex, actionIndex, timing, special, powerMod) {
@@ -834,20 +873,32 @@ function main(param) {
 			const width = 150, height = 40;
 			const startX = 12 + actorX[actorIndex] + 50 - width / 2;
 			const startY = 210;
-			const sprite = new g.Sprite({
-				scene: scene, src: scene.asset.getImageById(assetId),
-				srcX: 0, srcY: 0, srcWidth: 240, srcHeight: 64,
-				x: startX, y: startY, width: width, height: height
-			});
-			scene.append(sprite);
-			actionResultStates.push({ entity: sprite, left: 0.95, duration: 0.95, startY: startY });
+			let fx = actionResultPool.pop();
+			if (!fx) {
+				const sprite = new g.Sprite({
+					scene: scene, src: scene.asset.getImageById(assetId),
+					srcX: 0, srcY: 0, srcWidth: 240, srcHeight: 64,
+					width: width, height: height
+				});
+				scene.append(sprite);
+				fx = { entity: sprite };
+			}
+			const resultImage = scene.asset.getImageById(assetId);
+			if (fx.entity.src !== resultImage) { fx.entity.src = resultImage; fx.entity.invalidate(); }
+			fx.entity.x = startX; fx.entity.y = startY; fx.entity.opacity = 1; if (!fx.entity.visible()) fx.entity.show(); fx.entity.modified();
+			fx.left = 0.95; fx.duration = 0.95; fx.startY = startY;
+			actionResultStates.push(fx);
 		}
 		function showJudgeAppealFeedback(appeals) {
 			for (let i = 0; i < 3; ++i) {
 				if (appeals[i] <= 0) continue;
 				const startY = 72;
-				const label = createLabel(scene, scene, f30, "+" + appeals[i], 12 + i * 244 + 118, startY, axes[i].color, { anchorX: 0.5 });
-				judgeScoreStates.push({ entity: label, left: 1.0, duration: 1.0, startY: startY });
+				let fx = judgeScorePool.pop();
+				if (!fx) fx = { entity: createLabel(scene, scene, f30, "", 0, startY, axes[i].color, { anchorX: 0.5 }) };
+				fx.entity.x = 12 + i * 244 + 118; fx.entity.y = startY; fx.entity.opacity = 1; if (!fx.entity.visible()) fx.entity.show(); fx.entity.modified();
+				updateLabel(fx.entity, "+" + appeals[i], axes[i].color);
+				fx.left = 1.0; fx.duration = 1.0; fx.startY = startY;
+				judgeScoreStates.push(fx);
 			}
 		}
 		function showPlayerAppealFeedback(actionLabel, appeals) {
@@ -910,7 +961,7 @@ function main(param) {
 			specialAuraLayer.append(aura);
 			specialEffects.push({
 				actorIndex: actorIndex, isPlayer: isPlayerSpecial, panel: panel, aura: aura, particles: particles,
-				left: 1.65, startX: startX, targetX: targetX, exitX: exitX, baseY: baseY
+				left: 1.65, startX: startX, targetX: targetX, exitX: exitX, baseY: baseY, particleStep: -1
 			});
 			specialFx.show();
 			specialAuraLayer.show();
@@ -939,7 +990,9 @@ function main(param) {
 
 		function resolvePlayer(actionIndex) {
 			if (phase !== "play" || playerActed) return;
-			cursorHoldPosition = timingPositionAt(turnElapsed);
+			// Judge the position represented by the cursor entity. This avoids a
+			// one-update discrepancy between the last visible frame and point input.
+			cursorHoldPosition = cursorLivePosition;
 			playerActed = true;
 			selectedPlayerAction = actionIndex;
 			const voltageBeforeAction = playerVoltage;
@@ -1005,52 +1058,50 @@ function main(param) {
 		function refreshHud() {
 			syncPlayerSpecialAvailability();
 			const elapsed = Math.max(0, (turn - 1) * TURN_SECONDS + turnElapsed), left = Math.max(0, TURN_SECONDS * TOTAL_TURNS - elapsed), rank = ranking();
-			const sec = Math.ceil(left); timeLabel.text = pad2(Math.floor(sec / 60)) + ":" + pad2(sec % 60); timeLabel.invalidate();
-			turnLabel.text = "TURN " + turn + " / " + TOTAL_TURNS; turnLabel.invalidate();
-			scoreLabel.text = format(scores[0]) + " pt"; scoreLabel.invalidate();
-			voltageText.text = Math.round(playerVoltage) + "%"; voltageText.invalidate();
-			voltageBar.fill.width = Math.max(0, Math.round(voltageBar.max * playerVoltage / 100)); voltageBar.fill.modified();
-			comboLabel.text = String(combo); comboLabel.invalidate();
-			comboGaugeEffect.text = "速度↑ 幅↓ Lv" + timingDifficulty; comboGaugeEffect.invalidate();
-			comboScoreEffect.text = "アピール x" + (1 + Math.min(0.25, Math.floor(combo / 5) * 0.05)).toFixed(2); comboScoreEffect.invalidate();
-			if (phase === "ready") nextTurnLabel.text = "開始まで " + Math.max(1, Math.ceil(readyLeft)) + "秒";
+			const sec = Math.ceil(left);
+			updateLabel(timeLabel, pad2(Math.floor(sec / 60)) + ":" + pad2(sec % 60));
+			updateLabel(turnLabel, "TURN " + turn + " / " + TOTAL_TURNS);
+			updateLabel(scoreLabel, format(scores[0]) + " pt");
+			updateLabel(voltageText, Math.round(playerVoltage) + "%");
+			updateRectWidth(voltageBar.fill, Math.max(0, Math.round(voltageBar.max * playerVoltage / 100)));
+			updateLabel(comboLabel, String(combo));
+			updateLabel(comboGaugeEffect, "速度↑ 幅↓ Lv" + timingDifficulty);
+			updateLabel(comboScoreEffect, "アピール x" + (1 + Math.min(0.25, Math.floor(combo / 5) * 0.05)).toFixed(2));
+			let countdownText;
+			if (phase === "ready") countdownText = "開始まで " + Math.max(1, Math.ceil(readyLeft)) + "秒";
 			else {
 				const countdown = Math.max(0, TURN_SECONDS - turnElapsed).toFixed(1);
-				nextTurnLabel.text = turn >= TOTAL_TURNS ? "終了まで " + countdown + "秒" : "次ターンまで " + countdown + "秒";
+				countdownText = turn >= TOTAL_TURNS ? "終了まで " + countdown + "秒" : "次ターンまで " + countdown + "秒";
 			}
-			nextTurnLabel.invalidate();
+			updateLabel(nextTurnLabel, countdownText);
 			for (let i = 0; i < 6; ++i) {
-				miniLabels[i].text = "No." + actors[rank[i]].no + "  " + format(scores[rank[i]]);
-				miniLabels[i].textColor = rank[i] === 0 ? C.pink : C.muted; miniLabels[i].invalidate();
+				updateLabel(miniLabels[i], "No." + actors[rank[i]].no + "  " + format(scores[rank[i]]), rank[i] === 0 ? C.pink : C.muted);
 			}
 			for (let i = 0; i < 6; ++i) {
 				const actorRank = rank.indexOf(i) + 1, ui = actorUi[i];
-				ui.rankSprite.src = scene.asset.getImageById(RANK_ASSET_IDS[actorRank - 1]);
-				ui.rankSprite.invalidate();
+				const rankImage = scene.asset.getImageById(RANK_ASSET_IDS[actorRank - 1]);
+				if (ui.rankSprite.src !== rankImage) { ui.rankSprite.src = rankImage; ui.rankSprite.invalidate(); }
 			}
 			for (let i = 0; i < 3; ++i) {
-				const j = judges[i], ui = judgeUi[i]; ui.lv.text = "Lv" + j.level; ui.lv.invalidate();
-				ui.gauge.fill.width = j.closed ? 0 : Math.max(0, Math.round(ui.gauge.max * j.left / j.max)); ui.gauge.fill.modified();
-				ui.top.text = j.top < 0 ? "TOP --" : "TOP No." + actors[j.top].no; ui.top.invalidate();
+				const j = judges[i], ui = judgeUi[i];
+				updateLabel(ui.lv, "Lv" + j.level);
+				updateRectWidth(ui.gauge.fill, j.closed ? 0 : Math.max(0, Math.round(ui.gauge.max * j.left / j.max)));
+				updateLabel(ui.top, j.top < 0 ? "TOP --" : "TOP No." + actors[j.top].no);
 			}
-			const pos = playerActed ? cursorHoldPosition : timingPositionAt(turnElapsed); cursor.x = timingX + Math.round(pos * (timingW - cursor.width)); cursor.modified();
+			cursorLivePosition = playerActed ? cursorHoldPosition : timingPositionAt(turnElapsed);
+			const cursorX = timingX + Math.round(cursorLivePosition * (timingW - cursor.width));
+			if (cursor.x !== cursorX) { cursor.x = cursorX; cursor.modified(); }
 			for (let i = 0; i < 4; ++i) {
-				if (playerSpecialTurn) actionUi[i].button.hide(); else actionUi[i].button.show();
+				updateVisibility(actionUi[i].button, !playerSpecialTurn);
 				const selected = playerActed && selectedPlayerAction === i;
 				const available = phase === "play" && !playerActed;
-				actionUi[i].base.opacity = selected ? 1 : (available ? 0.94 : (playerActed ? 0.16 : 0.5)); actionUi[i].base.modified();
+				updateOpacity(actionUi[i].base, selected ? 1 : (available ? 0.94 : (playerActed ? 0.16 : 0.5)));
 				const nextRepeat = lastPlayerAction === i ? (repeatCount >= 2 ? " -30%" : " -15%") : "";
-				actionUi[i].advantage.text = actions[i].advantage;
-				actionUi[i].advantage.textColor = C.gold; actionUi[i].advantage.invalidate();
-				actionUi[i].repeat.text = selected ? "" : nextRepeat.trim();
-				actionUi[i].repeat.invalidate();
-				actionUi[i].repeatBadge.opacity = !selected && nextRepeat ? 0.82 : 0;
-				actionUi[i].repeatBadge.modified();
+				updateLabel(actionUi[i].repeat, selected ? "" : nextRepeat.trim());
+				updateOpacity(actionUi[i].repeatBadge, !selected && nextRepeat ? 0.82 : 0);
 			}
-			if (playerSpecialTurn) specialButton.show(); else specialButton.hide();
-			specialButton.opacity = phase === "play" && !playerActed ? 1 : 0.36; specialButton.modified();
-			specialButtonLabel.text = "SPECIAL";
-			specialButtonLabel.invalidate();
+			updateVisibility(specialButton, playerSpecialTurn);
+			updateOpacity(specialButton, phase === "play" && !playerActed ? 1 : 0.36);
 		}
 
 		function updateJudgeMotion(dt) {
@@ -1159,7 +1210,7 @@ function main(param) {
 			if (phase === "title") return;
 			if (phase === "ready") {
 				readyLeft -= dt; const n = Math.max(1, Math.ceil(readyLeft));
-				judgmentLabel.text = "▲タイミングよくいずれかのアクションを選択"; judgmentLabel.textColor = C.gold; judgmentLabel.invalidate(); setMessage("審査開始まで " + n);
+				updateLabel(judgmentLabel, "▲タイミングよくいずれかのアクションを選択", C.gold); setMessage("審査開始まで " + n);
 				if (readyLeft <= 0) { phase = "play"; startStageBgm(currentStage.bgm); startTurn(); }
 				refreshHud(); return;
 			}
@@ -1173,7 +1224,7 @@ function main(param) {
 				const progress = clamp((fx.duration - fx.left) / fx.duration, 0, 1);
 				fx.entity.y = fx.startY - 42 * (1 - Math.pow(1 - progress, 2));
 				fx.entity.opacity = clamp(fx.left / 0.30, 0, 1);
-				if (fx.left <= 0) { fx.entity.destroy(); actionResultStates.splice(i, 1); }
+				if (fx.left <= 0) { fx.entity.hide(); actionResultStates.splice(i, 1); actionResultPool.push(fx); }
 				else fx.entity.modified();
 			}
 			for (let i = judgeScoreStates.length - 1; i >= 0; --i) {
@@ -1182,7 +1233,7 @@ function main(param) {
 				const progress = clamp((fx.duration - fx.left) / fx.duration, 0, 1);
 				fx.entity.y = fx.startY - 34 * progress;
 				fx.entity.opacity = clamp(fx.left / 0.32, 0, 1);
-				if (fx.left <= 0) { fx.entity.destroy(); judgeScoreStates.splice(i, 1); }
+				if (fx.left <= 0) { fx.entity.hide(); judgeScoreStates.splice(i, 1); judgeScorePool.push(fx); }
 				else fx.entity.modified();
 			}
 			if (turnFxLeft > 0) {
@@ -1199,7 +1250,7 @@ function main(param) {
 				fx.entity.x = fx.startX + (fx.endX - fx.startX) * eased;
 				fx.entity.y = fx.startY + (fx.endY - fx.startY) * eased - Math.sin(progress * Math.PI) * 54;
 				fx.entity.opacity = clamp(fx.left / 0.16, 0, 1);
-				if (fx.left <= 0) { fx.entity.destroy(); scoreTransferStates.splice(i, 1); } else fx.entity.modified();
+				if (fx.left <= 0) { fx.entity.hide(); scoreTransferStates.splice(i, 1); scoreTransferPool.push(fx); } else fx.entity.modified();
 			}
 			for (let specialIndex = specialEffects.length - 1; specialIndex >= 0; --specialIndex) {
 				const special = specialEffects[specialIndex];
@@ -1216,9 +1267,13 @@ function main(param) {
 				const auraScale = 0.9 + Math.sin(specialProgress * Math.PI * 3) * 0.06;
 				special.aura.scaleX = auraScale;
 				special.aura.scaleY = auraScale;
-				for (let i = 0; i < special.particles.length; ++i) {
-					special.particles[i].opacity = 0.38 + ((i + Math.floor(specialProgress * 12)) % 3) * 0.28;
-					special.particles[i].modified();
+				const particleStep = Math.floor(specialProgress * 12);
+				if (particleStep !== special.particleStep) {
+					special.particleStep = particleStep;
+					for (let i = 0; i < special.particles.length; ++i) {
+						special.particles[i].opacity = 0.38 + ((i + particleStep) % 3) * 0.28;
+						special.particles[i].modified();
+					}
 				}
 				special.aura.opacity = clamp(Math.min(enter * 2, (1 - specialProgress) / 0.14), 0, 1);
 				special.aura.modified();
@@ -1228,7 +1283,10 @@ function main(param) {
 					specialEffects.splice(specialIndex, 1);
 				}
 			}
-			if (specialEffects.length === 0) { specialFx.hide(); specialAuraLayer.hide(); }
+			if (specialEffects.length === 0) {
+				if (specialFx.visible()) specialFx.hide();
+				if (specialAuraLayer.visible()) specialAuraLayer.hide();
+			}
 			updateActorAnimations(dt);
 			updateJudgeMotion(dt);
 			if (turnElapsed >= TURN_SECONDS) {
