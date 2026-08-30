@@ -455,8 +455,8 @@
 			"path": "text/rounded_mplus_1c_medium_map.json"
 		},
 		"font_license": {
-			"type": "text",
-			"path": "tools/fonts/rounded-mplus-1c/OFL.txt"
+			"type": "binary",
+			"path": "fonts/rounded-mplus-1c/OFL.txt"
 		},
 		"bgm_opening": {
 			"type": "audio",

@@ -75,7 +75,6 @@ akashic export zip -o bodymake_contest.zip
 
 - `image/portraits` に全6キャラクターの通常バストアップと、主人公・ライバル・チャンピオンのSPECIAL用カットインを収録しています。
 - `image/ui/timing` に4判定の伸縮可能なゲージ帯、外枠、ダイヤ型カーソルを収録しています。各区間は全面を均一に着色し、PERFECTのみ明るい金色で強調しています。
-- 生成画像の透過・トリミング・軽量化は `tools/Prepare-PortraitAssets.ps1`、ゲージ素材の再生成は `tools/New-TimingGaugeAssets.ps1` で行えます。
 
 ## BGM・ME
 
@@ -90,8 +89,6 @@ akashic export zip -o bodymake_contest.zip
 各BGMはゲーム開始前の3秒と90秒の競技時間を途中ループなしで覆う約94秒に調整しています。音量はBGM間で大きな差が出ないよう揃えています。現在のゲームは予選固定のため予選BGMを再生し、最終順位が3位以内なら勝利ME、それ以外なら敗北MEを再生します。
 
 配布元: 音楽の卵（ https://ontama-m.com/ ）
-
-`tools/generate_audio.py` は以前の自作BGM／ME生成処理を保存した参考用スクリプトで、現在収録している音楽の卵の音源は生成しません。
 
 ## SE
 
@@ -113,12 +110,10 @@ akashic export zip -o bodymake_contest.zip
 
 ## フォント
 
-丸みのあるアイドルゲーム風の日本語UIと読みやすさを両立するため、`M PLUS Rounded 1c Medium` を採用しています。Akashicの実行環境に依存しないよう、ゲームで使用する文字だけを `image/ui/font/rounded_mplus_1c_medium.png` へ収録しています。再生成は次のコマンドで行えます。
+丸みのあるアイドルゲーム風の日本語UIと読みやすさを両立するため、`M PLUS Rounded 1c Medium` を採用しています。Akashicの実行環境に依存しないよう、ゲームで使用する文字だけを `image/ui/font/rounded_mplus_1c_medium.png` へ収録しています。
 
-```powershell
-.\tools\New-GameBitmapFont.ps1
-```
-
-元フォントとライセンス全文は `tools/fonts/rounded-mplus-1c` に収録しています。Copyright 2016 The Rounded M+ Project Authors. Licensed under the SIL Open Font License, Version 1.1.
+- 利用元: Google Fonts「M PLUS Rounded 1c」（ https://fonts.google.com/specimen/M%2BPLUS%2BRounded%2B1c ）
+- Copyright 2016 The Rounded M+ Project Authors.
+- License: SIL Open Font License, Version 1.1（ https://openfontlicense.org/ ）
 
 動作検証用のスクリーンショットは `tmp/verification` に格納します。
