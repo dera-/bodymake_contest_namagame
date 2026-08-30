@@ -528,7 +528,7 @@ function main(param) {
 			return { level: 1, max: gauge, left: gauge, totals: [0, 0, 0, 0, 0, 0], top: -1, closed: false };
 		});
 		let scores = [0, 0, 0, 0, 0, 0];
-		let rankingCache = [0, 1, 2, 3, 4, 5], rankingDirty = true;
+		let rankingCache = [0, 1, 2, 3, 4, 5], rankingDirty = true, rankingHudDirty = true;
 		let phase = "title", readyLeft = 3, turn = 0, turnElapsed = 0;
 		let trends = makeTrends(), nextTrends = makeTrends(), plans = [];
 		let playerActed = true, playerSpecialTurn = false, turnFirst = -1, midpointCommented = false;
@@ -568,6 +568,7 @@ function main(param) {
 		function addActorScore(actorIndex, value) {
 			scores[actorIndex] += value;
 			rankingDirty = true;
+			rankingHudDirty = true;
 			if (actorIndex === 0) syncLiveRankingScore();
 		}
 		function competitionSnapshot() {
@@ -591,6 +592,27 @@ function main(param) {
 			const cutoff = rank[currentStage.clearRank - 1];
 			const gap = Math.max(1, Math.floor(scores[cutoff] - scores[0]) + 1);
 			return currentStage.clearRank === 1 ? "首位まで " + format(gap) + "pt" : "通過まで " + format(gap) + "pt";
+		}
+		function refreshRankingHud() {
+			const rank = ranking();
+			const playerRank = rank.indexOf(0) + 1;
+			const qualified = playerRank <= currentStage.clearRank;
+			const passText = playerRank + "位" + (currentStage.clearRank === 1 ? (qualified ? "優勝" : "圏外") : (qualified ? "圏内" : "圏外"));
+			updateLabel(passBadgeLabel, passText, "#fff");
+			const passColor = qualified ? C.green : C.danger;
+			if (passBadgeBg.cssColor !== passColor) { passBadgeBg.cssColor = passColor; passBadgeBg.modified(); }
+			const lineY = 470 + currentStage.clearRank * 30;
+			if (qualificationLine.y !== lineY) { qualificationLine.y = lineY; qualificationLine.modified(); }
+			updateLabel(rankGapLabel, rankGapText(rank), qualified ? C.gold : C.danger);
+			for (let i = 0; i < 6; ++i) {
+				updateLabel(miniLabels[i], "No." + actors[rank[i]].no + "  " + format(scores[rank[i]]), rank[i] === 0 ? C.pink : C.muted);
+			}
+			for (let i = 0; i < 6; ++i) {
+				const actorRank = rank.indexOf(i) + 1, ui = actorUi[i];
+				const rankImage = scene.asset.getImageById(RANK_ASSET_IDS[actorRank - 1]);
+				if (ui.rankSprite.src !== rankImage) { ui.rankSprite.src = rankImage; ui.rankSprite.invalidate(); }
+			}
+			rankingHudDirty = false;
 		}
 		function clearCoefficient(playerRank) {
 			if (playerRank <= currentStage.clearRank) return 1;
@@ -841,7 +863,7 @@ function main(param) {
 			stopOpeningBgm();
 			if (titleLayer) titleLayer.hide();
 
-			scores = [0, 0, 0, 0, 0, 0]; rankingCache = [0, 1, 2, 3, 4, 5]; rankingDirty = true;
+			scores = [0, 0, 0, 0, 0, 0]; rankingCache = [0, 1, 2, 3, 4, 5]; rankingDirty = true; rankingHudDirty = true;
 			turn = 0; turnElapsed = 0; readyLeft = 3;
 			trends = makeTrends(); nextTrends = makeTrends(); plans = [];
 			playerActed = true; playerSpecialTurn = false; turnFirst = -1; midpointCommented = false;
@@ -1123,9 +1145,7 @@ function main(param) {
 
 		function refreshHud() {
 			syncPlayerSpecialAvailability();
-			const elapsed = Math.max(0, (turn - 1) * TURN_SECONDS + turnElapsed), left = Math.max(0, TURN_SECONDS * TOTAL_TURNS - elapsed), rank = ranking();
-			const playerRank = rank.indexOf(0) + 1;
-			const qualified = playerRank <= currentStage.clearRank;
+			const elapsed = Math.max(0, (turn - 1) * TURN_SECONDS + turnElapsed), left = Math.max(0, TURN_SECONDS * TOTAL_TURNS - elapsed);
 			const sec = Math.ceil(left);
 			updateLabel(timeLabel, pad2(Math.floor(sec / 60)) + ":" + pad2(sec % 60));
 			updateLabel(turnLabel, "TURN " + turn + " / " + TOTAL_TURNS);
@@ -1142,21 +1162,7 @@ function main(param) {
 				countdownText = turn >= TOTAL_TURNS ? "終了まで " + countdown + "秒" : "次ターンまで " + countdown + "秒";
 			}
 			updateLabel(nextTurnLabel, countdownText);
-			const passText = playerRank + "位" + (currentStage.clearRank === 1 ? (qualified ? "優勝" : "圏外") : (qualified ? "圏内" : "圏外"));
-			updateLabel(passBadgeLabel, passText, "#fff");
-			const passColor = qualified ? C.green : C.danger;
-			if (passBadgeBg.cssColor !== passColor) { passBadgeBg.cssColor = passColor; passBadgeBg.modified(); }
-			const lineY = 470 + currentStage.clearRank * 30;
-			if (qualificationLine.y !== lineY) { qualificationLine.y = lineY; qualificationLine.modified(); }
-			updateLabel(rankGapLabel, rankGapText(rank), qualified ? C.gold : C.danger);
-			for (let i = 0; i < 6; ++i) {
-				updateLabel(miniLabels[i], "No." + actors[rank[i]].no + "  " + format(scores[rank[i]]), rank[i] === 0 ? C.pink : C.muted);
-			}
-			for (let i = 0; i < 6; ++i) {
-				const actorRank = rank.indexOf(i) + 1, ui = actorUi[i];
-				const rankImage = scene.asset.getImageById(RANK_ASSET_IDS[actorRank - 1]);
-				if (ui.rankSprite.src !== rankImage) { ui.rankSprite.src = rankImage; ui.rankSprite.invalidate(); }
-			}
+			if (rankingHudDirty) refreshRankingHud();
 			for (let i = 0; i < 3; ++i) {
 				const j = judges[i], ui = judgeUi[i];
 				updateLabel(ui.lv, "Lv" + j.level);
