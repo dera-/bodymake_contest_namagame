@@ -1,7 +1,7 @@
 "use strict";
 
 const TITLE_STAGE_INFO = [
-	{ name: "予選", difficulty: "簡単", clear: "3位以内", multiplier: 1, background: "stage_preliminary", color: "#ff5aa8" },
+	{ name: "予選", difficulty: "簡単", clear: "2位以内", multiplier: 1, background: "stage_preliminary", color: "#ff5aa8" },
 	{ name: "準決勝", difficulty: "普通", clear: "2位以内", multiplier: 2, background: "stage_semifinal", color: "#54d9ff" },
 	{ name: "決勝", difficulty: "難しい", clear: "1位", multiplier: 5, background: "stage_final", color: "#ffd85d" }
 ];
@@ -233,7 +233,7 @@ function createTitleUi(param) {
 	const objective = framedPanel(rulesPage, 75, 132, 360, 178, "#111021", "#ff4fa3");
 	label(objective, "1  目的", 22, 14, 30, "#ff6ab2");
 	objective.append(new g.Sprite({ scene: scene, src: scene.asset.getImageById("rank_1"), srcWidth: 80, srcHeight: 80, x: 22, y: 64, width: 72, height: 72 }));
-	label(objective, "予選 3位以内\n準決勝 2位以内\n決勝 1位", 112, 64, 24, "#fff", { width: 225, lineBreak: true });
+	label(objective, "予選 2位以内\n準決勝 2位以内\n決勝 1位", 112, 64, 24, "#fff", { width: 225, lineBreak: true });
 
 	const operation = framedPanel(rulesPage, 455, 132, 750, 178, "#111021", "#54d9ff");
 	label(operation, "2  操作", 22, 14, 30, "#54d9ff");

@@ -7,27 +7,35 @@ const createTitleUi = require("bodymake-title");
 const createLoadingScene = require("bodymake-loading");
 
 const STORAGE_KEY = "shiny_muscle";
+const TREND_MULTIPLIERS = [1.60, 1.20, 0.80];
+const PLAYER_VOLTAGE_GAINS = { PERFECT: 18, GOOD: 15, NORMAL: 9, BAD: 0 };
 const STAGE_CONFIGS = [
 	{
 		name: "予選", difficulty: "簡単", background: "stage_preliminary", bgm: "bgm_preliminary",
-		clearRank: 3, scoreMultiplier: 1, aiPower: 0.90, aiAdapt: 0.75, aiTimingError: 1.00, timingSpeed: 1.00,
-		perfectWidth: 1.00, goodWidth: 1.00, normalWidth: 1.00, judgeGauge: 1.08,
-		aiVoltage: [0, 0, 0, 0, 50, 80], aiVoltageGain: 1.20, aiSpecialMax: [0, 0, 0, 0, 1, 2],
-		aiSpecialTurns: [[], [], [], [], [10], [5, 14]]
+		clearRank: 2, scoreMultiplier: 1, aiPower: 0.96, aiAdapt: 0.84, aiTimingError: 1.00, timingSpeed: 1.00,
+		perfectWidth: 1.00, goodWidth: 1.00, normalWidth: 1.00, judgeGauge: 0.92,
+		aiActorPower: [1, 0.90, 0.92, 0.92, 1.10, 1.28], aiActorAdapt: [1, 1, 1, 1, 1.20, 1.20],
+		aiVoltage: [0, 0, 0, 0, 50, 80], aiVoltageGain: 1.20, aiSpecialMax: [0, 0, 0, 0, 2, 2],
+		aiSpecialTurns: [[], [], [], [], [8, 17], [5, 13]],
+		aiSpecialTurnWindows: [[], [], [], [], [[6, 9], [14, 18]], [[2, 5], [10, 13]]]
 	},
 	{
 		name: "準決勝", difficulty: "普通", background: "stage_semifinal", bgm: "bgm_semifinal",
-		clearRank: 2, scoreMultiplier: 2, aiPower: 1.00, aiAdapt: 1.06, aiTimingError: 1.00, timingSpeed: 1.00,
-		perfectWidth: 1.00, goodWidth: 1.00, normalWidth: 1.00, judgeGauge: 1.00,
-		aiVoltage: [0, 0, 0, 0, 72, 90], aiVoltageGain: 1.35, aiSpecialMax: [0, 0, 0, 0, 2, 2],
-		aiSpecialTurns: [[], [], [], [], [7, 16], [4, 12]]
+		clearRank: 2, scoreMultiplier: 2, aiPower: 1.18, aiAdapt: 1.14, aiTimingError: 1.00, timingSpeed: 1.00,
+		perfectWidth: 1.00, goodWidth: 1.00, normalWidth: 1.00, judgeGauge: 0.92,
+		aiActorPower: [1, 1, 1, 1, 1.08, 1.10], aiActorAdapt: [1, 1, 1, 1, 1.05, 1],
+		aiVoltage: [0, 0, 0, 0, 72, 90], aiVoltageGain: 1.35, aiSpecialMax: [0, 0, 0, 0, 3, 3],
+		aiSpecialTurns: [[], [], [], [], [6, 12, 18], [3, 9, 15]],
+		aiSpecialTurnWindows: [[], [], [], [], [[5, 7], [11, 13], [16, 18]], [[2, 4], [8, 10], [14, 15]]]
 	},
 	{
 		name: "決勝", difficulty: "難しい", background: "stage_final", bgm: "bgm_final",
-		clearRank: 1, scoreMultiplier: 5, aiPower: 1.03, aiAdapt: 1.15, aiTimingError: 0.72, timingSpeed: 1.00,
+		clearRank: 1, scoreMultiplier: 5, aiPower: 1.06, aiAdapt: 1.12, aiTimingError: 0.72, timingSpeed: 1.00,
 		perfectWidth: 1.00, goodWidth: 1.00, normalWidth: 1.00, judgeGauge: 0.92,
+		aiActorPower: [1, 1, 1, 1, 1.04, 1.12], aiActorAdapt: [1, 1, 1, 1, 1, 1],
 		aiVoltage: [0, 0, 0, 0, 85, 98], aiVoltageGain: 1.40, aiSpecialMax: [0, 0, 0, 0, 3, 3],
-		aiSpecialTurns: [[], [], [], [], [6, 12, 18], [3, 9, 15]]
+		aiSpecialTurns: [[], [], [], [], [6, 12, 18], [3, 9, 15]],
+		aiSpecialTurnWindows: [[], [], [], [], [[5, 7], [11, 13], [16, 18]], [[2, 4], [8, 10], [14, 15]]]
 	}
 ];
 
@@ -250,10 +258,10 @@ function main(param) {
 		function judgeTiming(pos) {
 			const config = timingConfig();
 			const d = Math.abs(pos - 0.5);
-			if (d <= config.perfect) return { name: "PERFECT", multi: 1.45, voltage: 16 };
-			if (d <= config.good) return { name: "GOOD", multi: 1.2, voltage: 11 };
-			if (d <= config.normal) return { name: "NORMAL", multi: 1, voltage: 7 };
-			return { name: "BAD", multi: 0.7, voltage: 0 };
+			if (d <= config.perfect) return { name: "PERFECT", multi: 1.45, voltage: 13 };
+			if (d <= config.good) return { name: "GOOD", multi: 1.00, voltage: 10 };
+			if (d <= config.normal) return { name: "NORMAL", multi: 0.75, voltage: 6 };
+			return { name: "BAD", multi: 0.50, voltage: 0 };
 		}
 		function levelGauge(level) { return Math.round(1800 * currentStage.judgeGauge * (1 + (level - 1) * 0.15)); }
 		function levelMulti(level) { return 1 + (level - 1) * 0.12; }
@@ -406,7 +414,7 @@ function main(param) {
 		createLabel(scene, status, f20, "COMBO", 18, 330, C.pink);
 		const comboLabel = createLabel(scene, status, f30, "0", 238, 324, C.gold, { anchorX: 1 });
 		const comboGaugeEffect = createLabel(scene, status, f16, "速度↑ 幅↓ Lv0", 18, 362, C.cyan);
-		const comboScoreEffect = createLabel(scene, status, f16, "アピール x1.00", 18, 391, C.gold);
+		const comboScoreEffect = createLabel(scene, status, f16, "傾向1位 x1.00", 18, 391, C.gold);
 		status.append(new g.FilledRect({ scene: scene, x: 16, y: 422, width: 226, height: 2, cssColor: C.line, opacity: 0.65 }));
 		createLabel(scene, status, f20, "RANKING", 18, 436, C.pink);
 		const passBadgeBg = new g.FilledRect({ scene: scene, x: 145, y: 432, width: 95, height: 32, cssColor: C.green, opacity: 0.82 });
@@ -531,12 +539,13 @@ function main(param) {
 		let rankingCache = [0, 1, 2, 3, 4, 5], rankingDirty = true, rankingHudDirty = true;
 		let phase = "title", readyLeft = 3, turn = 0, turnElapsed = 0;
 		let trends = makeTrends(), nextTrends = makeTrends(), plans = [];
-		let playerActed = true, playerSpecialTurn = false, turnFirst = -1, midpointCommented = false;
+		let playerActed = true, playerSpecialTurn = false, midpointCommented = false;
 		let playerVoltage = 0, playerSpecials = 0, combo = 0;
-		let lastPlayerAction = -1, repeatCount = 0, recentActions = [], varietyCooldown = 0;
+		let lastPlayerAction = -1, repeatCount = 0;
 		let selectedPlayerAction = -1, cursorHoldPosition = 0, cursorLivePosition = 0, lastTurnMiss = false;
 		let turnFxLeft = 0, competitionFxLeft = 0, competitionFxDuration = 0, competitionReady = false, scoreSaved = false;
 		let aiSpecialCounts = [0, 0, 0, 0, 0, 0];
+		let activeAiSpecialTurns = currentStage.aiSpecialTurns;
 		let titleLayer = null;
 		function setPlayerVoltage(value) {
 			const bounded = clamp(value, 0, 100);
@@ -554,7 +563,15 @@ function main(param) {
 
 		function makeTrends() {
 			const order = shuffle([0, 1, 2], random), v = [1, 1, 1];
-			v[order[0]] = 1.5; v[order[1]] = 1.2; return v;
+			v[order[0]] = TREND_MULTIPLIERS[0]; v[order[1]] = TREND_MULTIPLIERS[1]; v[order[2]] = TREND_MULTIPLIERS[2]; return v;
+		}
+		function actionTrendVoltageMultiplier(actionIndex) {
+			const topAxis = trends.indexOf(Math.max.apply(null, trends));
+			const actionAxis = actionIndex <= 1 ? 0 : actionIndex - 1;
+			return actionAxis === topAxis ? 1.15 : 0.85;
+		}
+		function actionTrendMultiplier(actionIndex) {
+			return trends[actionIndex <= 1 ? 0 : actionIndex - 1];
 		}
 		function ranking() {
 			if (rankingDirty) {
@@ -744,12 +761,13 @@ function main(param) {
 
 		function chooseAiAction(actorIndex) {
 			const a = actors[actorIndex];
-			const effectiveAdapt = clamp(a.adapt * currentStage.aiAdapt, 0, 0.96);
+			const effectiveAdapt = clamp(a.adapt * currentStage.aiAdapt * currentStage.aiActorAdapt[actorIndex], 0, 0.96);
 			if (random.generate() > effectiveAdapt) return random.generate() < 0.72 ? a.favorite : Math.floor(random.generate() * 4);
 			let best = 0, bestV = -1;
 			for (let action = 0; action < 4; ++action) {
 				let v = action === a.favorite ? 45 : 0;
-				for (let axis = 0; axis < 3; ++axis) v += actions[action].base[axis] * trends[axis] * a.stats[axis];
+				for (let axis = 0; axis < 3; ++axis) v += actions[action].base[axis] * a.stats[axis];
+				v *= actionTrendMultiplier(action);
 				if (v > bestV) { best = action; bestV = v; }
 			}
 			return best;
@@ -762,15 +780,27 @@ function main(param) {
 			if (style === "sniper") {
 				const period = timingConfig().period, perfects = [];
 				for (let t = period * 0.25; t < TURN_SECONDS - 0.15; t += period * 0.5) perfects.push(t);
-				return perfects[Math.floor(random.generate() * perfects.length)] + (random.generate() - 0.5) * 0.08 * currentStage.aiTimingError;
+				return clamp(perfects[Math.floor(random.generate() * perfects.length)] + (random.generate() - 0.5) * 0.36 * currentStage.aiTimingError, 0.15, TURN_SECONDS - 0.15);
 			}
 			if (style === "rival") {
 				const period = timingConfig().period, goodWindows = [];
 				for (let t = period * 0.25; t < TURN_SECONDS - 0.15; t += period * 0.5) goodWindows.push(t);
-				return goodWindows[Math.floor(random.generate() * goodWindows.length)] + (random.generate() - 0.5) * 0.28 * currentStage.aiTimingError;
+				return clamp(goodWindows[Math.floor(random.generate() * goodWindows.length)] + (random.generate() - 0.5) * 0.56 * currentStage.aiTimingError, 0.15, TURN_SECONDS - 0.15);
 			}
 			if (style === "middle") return 1.2 + random.generate() * 2.05;
 			return 0.9 + random.generate() * 3.45;
+		}
+		function buildAiSpecialTurns(stage) {
+			const turns = stage.aiSpecialTurns.map(function (actorTurns) { return actorTurns.slice(); });
+			if (!stage.aiSpecialTurnWindows) return turns;
+			for (let actor = 0; actor < stage.aiSpecialTurnWindows.length; ++actor) {
+				const windows = stage.aiSpecialTurnWindows[actor];
+				if (!windows || windows.length === 0) continue;
+				turns[actor] = windows.map(function (window) {
+					return Math.min(window[1], window[0] + Math.floor(random.generate() * (window[1] - window[0] + 1)));
+				});
+			}
+			return turns;
 		}
 
 		function preparePlans() {
@@ -778,8 +808,11 @@ function main(param) {
 			for (let actor = 1; actor < 6; ++actor) {
 				const a = actors[actor];
 				const specialIndex = aiSpecialCounts[actor];
-				const specialTurns = currentStage.aiSpecialTurns[actor] || [];
+				const specialTurns = activeAiSpecialTurns[actor] || [];
 				const unlockTurn = specialTurns[specialIndex] == null ? TOTAL_TURNS + 1 : specialTurns[specialIndex];
+				// SPECIAL count is part of the stage balance. Once its distributed
+				// activation turn arrives, guarantee enough VOLTAGE to execute it.
+				if (a.special && specialIndex < currentStage.aiSpecialMax[actor] && turn >= unlockTurn) a.voltage = 100;
 				const special = !!a.special && a.voltage >= 100 && specialIndex < currentStage.aiSpecialMax[actor] && turn >= unlockTurn;
 				const time = chooseAiTime(actor), action = chooseAiAction(actor);
 				plans.push({ actor: actor, action: action, time: time, acted: false, special: special, timing: judgeTiming(timingPositionAt(time)) });
@@ -823,7 +856,7 @@ function main(param) {
 		}
 
 		function startTurn() {
-			++turn; turnElapsed = 0; playerActed = false; turnFirst = -1; midpointCommented = false;
+			++turn; turnElapsed = 0; playerActed = false; midpointCommented = false;
 			selectedPlayerAction = -1; cursorHoldPosition = 0; cursorLivePosition = 0;
 			rotateClosedJudges(); trends = nextTrends; nextTrends = makeTrends();
 			setStageAppearance();
@@ -858,6 +891,7 @@ function main(param) {
 			if (phase !== "title") return;
 			selectedStageIndex = clamp(stageIndex, 0, STAGE_CONFIGS.length - 1);
 			currentStage = STAGE_CONFIGS[selectedStageIndex];
+			activeAiSpecialTurns = buildAiSpecialTurns(currentStage);
 			storedData.selected = selectedStageIndex;
 			writeStoredData();
 			stopOpeningBgm();
@@ -866,9 +900,9 @@ function main(param) {
 			scores = [0, 0, 0, 0, 0, 0]; rankingCache = [0, 1, 2, 3, 4, 5]; rankingDirty = true; rankingHudDirty = true;
 			turn = 0; turnElapsed = 0; readyLeft = 3;
 			trends = makeTrends(); nextTrends = makeTrends(); plans = [];
-			playerActed = true; playerSpecialTurn = false; turnFirst = -1; midpointCommented = false;
+			playerActed = true; playerSpecialTurn = false; midpointCommented = false;
 			setPlayerVoltage(0); playerSpecials = 0; combo = 0; timingDifficulty = 0;
-			lastPlayerAction = -1; repeatCount = 0; recentActions = []; varietyCooldown = 0;
+			lastPlayerAction = -1; repeatCount = 0;
 			selectedPlayerAction = -1; cursorHoldPosition = 0; cursorLivePosition = 0; lastTurnMiss = false;
 			turnFxLeft = 0; competitionReady = false; scoreSaved = false; aiSpecialCounts = [0, 0, 0, 0, 0, 0];
 			g.game.vars.gameState.score = 0;
@@ -889,12 +923,6 @@ function main(param) {
 			competitionFxLeft = 0; competitionFx.hide();
 			phase = "ready";
 			setStageAppearance(); updateTrendUi(); updateTimingZones(); refreshHud();
-		}
-
-		function awardFirst(actorIndex) {
-			if (turnFirst >= 0) return;
-			turnFirst = actorIndex; addActorScore(actorIndex, 350);
-			if (actorIndex === 0) addPlayerVoltage(7);
 		}
 
 		function closeJudge(index, lastActor) {
@@ -931,16 +959,15 @@ function main(param) {
 		}
 
 		function applyActorAppeal(actorIndex, actionIndex, timing, special, powerMod) {
-			awardFirst(actorIndex);
 			const a = actors[actorIndex], action = actions[actionIndex];
-			const specialMulti = { BAD: 0.75, NORMAL: 1, GOOD: 1.5, PERFECT: 2 }[timing.name];
 			const appeals = [0, 0, 0];
 			let judgeLeft = false;
 			for (let axis = 0; axis < 3; ++axis) {
 				const j = judges[axis];
 				if (j.closed) continue;
 				const base = special ? 620 : action.base[axis];
-				const value = Math.round(base * (special ? specialMulti : timing.multi) * trends[axis] * a.stats[axis] * powerMod);
+				const trendMultiplier = special ? trends[axis] : actionTrendMultiplier(actionIndex);
+				const value = Math.round(base * timing.multi * trendMultiplier * a.stats[axis] * powerMod);
 				appeals[axis] = value;
 				playScoreTransfer(axis, actorIndex, value);
 				const oldTop = j.top;
@@ -1058,14 +1085,14 @@ function main(param) {
 			plan.acted = true;
 			const competitionBefore = competitionSnapshot();
 			const playerVoltageWasFull = isPlayerVoltageFull();
-			applyActorAppeal(plan.actor, plan.action, plan.timing, plan.special, currentStage.aiPower);
+			applyActorAppeal(plan.actor, plan.action, plan.timing, plan.special, currentStage.aiPower * currentStage.aiActorPower[plan.actor]);
 			if (competitionReady) showCompetitionChanges(competitionBefore, plan.actor, plan.timing.name);
 			syncPlayerSpecialAvailability();
 			if (!playerVoltageWasFull && isPlayerVoltageFull()) playSe("se_voltage_max", 0.76);
 			const a = actors[plan.actor];
 			if (plan.special) { a.voltage = 0; ++aiSpecialCounts[plan.actor]; showSpecial(plan.actor); }
 			else {
-				const gain = plan.timing.voltage * (plan.action === 3 ? 1.3 : 1) * (a.special ? 1.25 : 1) * currentStage.aiVoltageGain;
+				const gain = plan.timing.voltage * actionTrendVoltageMultiplier(plan.action) * (plan.action === 3 ? 1.3 : 1) * (a.special ? 1.25 : 1) * currentStage.aiVoltageGain;
 				a.voltage = clamp(a.voltage + gain, 0, 100);
 			}
 			setActorState(plan.actor, true);
@@ -1089,25 +1116,19 @@ function main(param) {
 				const timingSeVolume = { PERFECT: 0.68, GOOD: 0.62, NORMAL: 0.58, BAD: 0.62 }[timing.name];
 				playSe(TIMING_SE_ASSET_IDS[timing.name], timingSeVolume);
 			}
-			let repeatMod = 1, variety = false;
+			let repeatMod = 1;
 			if (!special) {
 				if (lastPlayerAction === actionIndex) ++repeatCount; else repeatCount = 1;
 				lastPlayerAction = actionIndex;
-				repeatMod *= repeatCount === 2 ? 0.85 : (repeatCount >= 3 ? 0.7 : 1);
-				recentActions.push(actionIndex); if (recentActions.length > 4) recentActions.shift();
-				if (varietyCooldown > 0) --varietyCooldown;
-				const unique = {};
-				for (let i = 0; i < recentActions.length; ++i) unique[recentActions[i]] = true;
-				variety = Object.keys(unique).length >= 3 && varietyCooldown === 0;
-				if (variety) { varietyCooldown = 2; addPlayerVoltage(10); }
+				repeatMod *= repeatCount === 2 ? 0.75 : (repeatCount >= 3 ? 0.5 : 1);
 			}
-			const comboMod = 1 + Math.min(0.25, Math.floor(combo / 5) * 0.05);
-			const appeals = applyActorAppeal(0, actionIndex, timing, special, repeatMod * (variety ? 1.15 : 1) * comboMod);
+			const comboMod = !special && actionTrendMultiplier(actionIndex) === TREND_MULTIPLIERS[0] ? 1 + Math.min(0.25, Math.floor(combo / 5) * 0.05) : 1;
+			const appeals = applyActorAppeal(0, actionIndex, timing, special, repeatMod * comboMod);
 			competitionReady = true;
 			showCompetitionChanges(competitionBefore, 0, timing.name);
 			if (timing.name === "GOOD" || timing.name === "PERFECT") ++combo; else combo = 0;
 			if (special) { setPlayerVoltage(0); ++playerSpecials; showSpecial(0); }
-			else addPlayerVoltage(timing.voltage * (actionIndex === 3 ? 1.3 : 1));
+			else addPlayerVoltage(PLAYER_VOLTAGE_GAINS[timing.name] * actionTrendVoltageMultiplier(actionIndex) * (actionIndex === 3 ? 1.3 : 1));
 			if (!special && timing.name === "BAD") setPlayerVoltage(voltageBeforeAction);
 			if (!special && !playerVoltageWasFull && isPlayerVoltageFull()) playSe("se_voltage_max", 0.76);
 			showPlayerAppealFeedback(appeals);
@@ -1154,7 +1175,7 @@ function main(param) {
 			updateRectWidth(voltageBar.fill, Math.max(0, Math.round(voltageBar.max * playerVoltage / 100)));
 			updateLabel(comboLabel, String(combo));
 			updateLabel(comboGaugeEffect, "速度↑ 幅↓ Lv" + timingDifficulty);
-			updateLabel(comboScoreEffect, "アピール x" + (1 + Math.min(0.25, Math.floor(combo / 5) * 0.05)).toFixed(2));
+			updateLabel(comboScoreEffect, "傾向1位 x" + (1 + Math.min(0.25, Math.floor(combo / 5) * 0.05)).toFixed(2));
 			let countdownText;
 			if (phase === "ready") countdownText = "開始まで " + Math.max(1, Math.ceil(readyLeft)) + "秒";
 			else {
@@ -1176,9 +1197,13 @@ function main(param) {
 				const selected = playerActed && selectedPlayerAction === i;
 				const available = phase === "play" && !playerActed;
 				updateOpacity(actionUi[i].base, selected ? 1 : (available ? 0.94 : (playerActed ? 0.16 : 0.5)));
-				const nextRepeat = lastPlayerAction === i ? (repeatCount >= 2 ? " -30%" : " -15%") : "";
-				updateLabel(actionUi[i].repeat, selected ? "" : nextRepeat.trim());
-				updateOpacity(actionUi[i].repeatBadge, !selected && nextRepeat ? 0.82 : 0);
+				let repeatPenalty = "";
+				if (lastPlayerAction === i) {
+					if (selected) repeatPenalty = repeatCount >= 3 ? "-50%" : (repeatCount === 2 ? "-25%" : "");
+					else repeatPenalty = repeatCount >= 2 ? "-50%" : "-25%";
+				}
+				updateLabel(actionUi[i].repeat, repeatPenalty);
+				updateOpacity(actionUi[i].repeatBadge, repeatPenalty ? 0.82 : 0);
 			}
 			updateVisibility(specialButton, playerSpecialTurn);
 			updateOpacity(specialButton, phase === "play" && !playerActed ? 1 : 0.36);
