@@ -10,6 +10,7 @@ function createTitleUi(param) {
 	const scene = param.scene;
 	const font = param.font;
 	let selected = param.initialSelected;
+	let tutorialEnabled = param.initialTutorialEnabled !== false;
 	const bests = param.bests;
 	let countdownFrames = 20 * g.game.fps;
 	let started = false;
@@ -97,7 +98,7 @@ function createTitleUi(param) {
 		if (started) return;
 		started = true;
 		playSelectSe();
-		param.onStart(selected);
+		param.onStart(selected, tutorialEnabled);
 	}
 
 	function backdrop(parent) {
@@ -196,6 +197,39 @@ function createTitleUi(param) {
 		cards.push({ entity: card, glow: glow, borderTop: borderTop, badge: selectedBadge });
 	}
 
+	// This control is drawn over the preliminary card after all cards so it owns
+	// the pointer hit area instead of being swallowed by the stage card itself.
+	const tutorialToggle = new g.E({ scene: scene, x: 64, y: 308, width: 220, height: 68, touchable: true });
+	const tutorialToggleBg = rect(tutorialToggle, 0, 0, 220, 68, "#080916", 0.94);
+	rect(tutorialToggle, 0, 0, 5, 68, "#ffd85d", 1);
+	const tutorialToggleLabel = label(tutorialToggle, "チュートリアル", 110, 1, 24, "#ffd85d", { anchorX: 0.5 });
+	rect(tutorialToggle, 8, 32, 204, 30, "#11091a", 0.94);
+	rect(tutorialToggle, 28, 34, 26, 26, "#080916", 1);
+	rect(tutorialToggle, 28, 34, 26, 3, "#fff", 0.9);
+	rect(tutorialToggle, 28, 57, 26, 3, "#fff", 0.9);
+	rect(tutorialToggle, 28, 34, 3, 26, "#fff", 0.9);
+	rect(tutorialToggle, 51, 34, 3, 26, "#fff", 0.9);
+	const tutorialCheck = rect(tutorialToggle, 33, 39, 16, 16, "#ff5aa8", 1);
+	const tutorialStatusLabel = label(tutorialToggle, "現在 ON", 67, 33, 24, "#9be44f");
+	tutorialToggle.onPointDown.add(function () {
+		playSelectSe();
+		selected = 0;
+		tutorialEnabled = !tutorialEnabled;
+		if (param.onTutorialChange) param.onTutorialChange(tutorialEnabled);
+		refreshCards();
+		refreshTutorialToggle();
+	});
+	titlePage.append(tutorialToggle);
+
+	function refreshTutorialToggle() {
+		if (tutorialEnabled) tutorialCheck.show(); else tutorialCheck.hide();
+		tutorialToggleBg.opacity = tutorialEnabled ? 0.96 : 0.78;
+		tutorialStatusLabel.text = tutorialEnabled ? "現在 ON" : "現在 OFF";
+		tutorialStatusLabel.textColor = tutorialEnabled ? "#9be44f" : "#ff8a95";
+		tutorialToggleBg.modified();
+		tutorialStatusLabel.invalidate();
+	}
+
 	function refreshCards() {
 		for (let i = 0; i < cards.length; ++i) {
 			const active = i === selected;
@@ -237,12 +271,24 @@ function createTitleUi(param) {
 
 	const operation = framedPanel(rulesPage, 455, 132, 750, 178, "#111021", "#54d9ff");
 	label(operation, "2  操作", 22, 14, 30, "#54d9ff");
-	label(operation, "カーソルを見て、アクションを1つタップ", 22, 54, 24, "#fff");
+	label(operation, "5秒ごとのターン制。タイミングカーソルを見る", 22, 50, 24, "#fff");
+	label(operation, "PERFECT / GOOD を狙ってアクションボタンを押す", 22, 79, 24, "#ffd85d");
+	const ruleTimingAssets = ["timing_bad", "timing_normal", "timing_good", "timing_perfect", "timing_good", "timing_normal", "timing_bad"];
+	rect(operation, 20, 112, 438, 34, "#fff", 0.9);
+	for (let i = 0; i < ruleTimingAssets.length; ++i) {
+		operation.append(new g.Sprite({
+			scene: scene, src: scene.asset.getImageById(ruleTimingAssets[i]),
+			srcWidth: 128, srcHeight: 28, x: 22 + i * 62, y: 115, width: 62, height: 28
+		}));
+	}
+	operation.append(new g.Sprite({
+		scene: scene, src: scene.asset.getImageById("timing_cursor"),
+		srcWidth: 24, srcHeight: 48, x: 230, y: 109, width: 18, height: 36
+	}));
+	label(operation, "→", 474, 108, 30, "#54d9ff");
 	const ruleActions = ["action_front", "action_back", "action_walk", "action_smile"];
-	const ruleNames = ["FRONT", "BACK", "WALK", "SMILE"];
 	for (let i = 0; i < ruleActions.length; ++i) {
-		operation.append(new g.Sprite({ scene: scene, src: scene.asset.getImageById(ruleActions[i]), srcWidth: 96, srcHeight: 96, x: 25 + i * 178, y: 88, width: 58, height: 58 }));
-		label(operation, ruleNames[i], 90 + i * 178, 101, 24, "#fff");
+		operation.append(new g.Sprite({ scene: scene, src: scene.asset.getImageById(ruleActions[i]), srcWidth: 96, srcHeight: 96, x: 515 + i * 53, y: 107, width: 44, height: 44 }));
 	}
 
 	const judging = framedPanel(rulesPage, 75, 330, 735, 250, "#111021", "#c178ff");
@@ -273,6 +319,7 @@ function createTitleUi(param) {
 	root.append(titlePage);
 	root.append(rulesPage);
 	refreshCards();
+	refreshTutorialToggle();
 	root.onUpdate.add(function () {
 		if (started) return;
 		countdownFrames = Math.max(0, countdownFrames - 1);

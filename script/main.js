@@ -118,9 +118,10 @@ function format(v) {
 }
 function normalizeStorageData(value) {
 	if (value && value.shiny_muscle) value = value.shiny_muscle;
-	const out = { selected: null, bests: [null, null, null] };
+	const out = { selected: null, bests: [null, null, null], tutorialEnabled: true };
 	if (!value || typeof value !== "object") return out;
 	if (value.selected === 0 || value.selected === 1 || value.selected === 2) out.selected = value.selected;
+	if (typeof value.tutorialEnabled === "boolean") out.tutorialEnabled = value.tutorialEnabled;
 	if (Array.isArray(value.bests)) {
 		for (let i = 0; i < 3; ++i) {
 			const score = value.bests[i];
@@ -130,7 +131,7 @@ function normalizeStorageData(value) {
 	return out;
 }
 function storageSnapshot(data) {
-	return { selected: data.selected, bests: data.bests.slice(0, 3) };
+	return { selected: data.selected, bests: data.bests.slice(0, 3), tutorialEnabled: data.tutorialEnabled !== false };
 }
 function createLabel(scene, parent, font, text, x, y, color, opt) {
 	opt = opt || {};
@@ -176,6 +177,7 @@ function main(param) {
 		let currentStage = STAGE_CONFIGS[selectedStageIndex];
 		let bgmPlayer = null;
 		let openingBgmPlayer = null;
+		let storageWriteChain = Promise.resolve();
 		function startOpeningBgm() {
 			if (openingBgmPlayer) return;
 			openingBgmPlayer = scene.asset.getAudioById("bgm_opening").play();
@@ -197,7 +199,12 @@ function main(param) {
 			return player;
 		}
 		function writeStoredData() {
-			instanceStorage.write(STORAGE_KEY, storageSnapshot(storedData)).catch(function () {
+			const snapshot = storageSnapshot(storedData);
+			// Preserve UI operation order when a toggle and game start happen close
+			// together. A late completion must not restore an older preference.
+			storageWriteChain = storageWriteChain.then(function () {
+				return instanceStorage.write(STORAGE_KEY, snapshot);
+			}).catch(function () {
 				// Storage is optional and may be unavailable on the current platform.
 			});
 		}
@@ -492,6 +499,10 @@ function main(param) {
 		specialButton.append(new g.FilledRect({ scene: scene, width: 12, height: 78, cssColor: "#fff" }));
 		specialButton.append(new g.FilledRect({ scene: scene, x: 12, width: 918, height: 4, cssColor: "#fff" }));
 		createLabel(scene, specialButton, f42, "SPECIAL", 465, 11, "#4a2200", { anchorX: 0.5 });
+		const specialTutorialHint = new g.E({ scene: scene, x: 625, y: 42, width: 285, height: 30, hidden: true });
+		specialTutorialHint.append(new g.FilledRect({ scene: scene, width: 285, height: 30, cssColor: "#160d22", opacity: 0.92 }));
+		createLabel(scene, specialTutorialHint, f16, "全審査へ大アピール", 142, 1, "#fff", { anchorX: 0.5 });
+		specialButton.append(specialTutorialHint);
 		controls.append(specialButton);
 
 		// Every SPECIAL owns its cut-in and aura. This prevents a simultaneous
@@ -530,6 +541,47 @@ function main(param) {
 		const competitionFxSub = createLabel(scene, competitionFx, f20, "", 246, 39, C.gold, { anchorX: 0.5 });
 		scene.append(competitionFx);
 
+		// The preliminary tutorial points at the live UI instead of stopping play
+		// for a separate explanation screen.
+		const tutorialLayer = new g.E({ scene: scene, width: 1280, height: 720, hidden: true });
+		function createTutorialFrame(x, y, width, height, color) {
+			const entity = new g.E({ scene: scene, x: x, y: y, width: width, height: height, hidden: true });
+			const glow = new g.FilledRect({ scene: scene, x: -5, y: -5, width: width + 10, height: height + 10, cssColor: color, opacity: 0.14 });
+			const edges = [
+				new g.FilledRect({ scene: scene, width: width, height: 5, cssColor: color }),
+				new g.FilledRect({ scene: scene, y: height - 5, width: width, height: 5, cssColor: color }),
+				new g.FilledRect({ scene: scene, width: 5, height: height, cssColor: color }),
+				new g.FilledRect({ scene: scene, x: width - 5, width: 5, height: height, cssColor: color })
+			];
+			entity.append(glow);
+			for (let i = 0; i < edges.length; ++i) entity.append(edges[i]);
+			tutorialLayer.append(entity);
+			return { entity: entity, glow: glow, edges: edges };
+		}
+		const tutorialControlsFrame = createTutorialFrame(8, 557, 994, 155, C.gold);
+		const tutorialTrendFrame = createTutorialFrame(738, 8, 266, 154, C.purple);
+		const tutorialActionFrame = createTutorialFrame(36, 593, 228, 88, C.gold);
+		const tutorialSpecialFrame = createTutorialFrame(36, 593, 938, 86, C.gold);
+		const tutorialTurnFrame = createTutorialFrame(1004, 8, 270, 136, C.cyan);
+		const tutorialJudgeFrame = createTutorialFrame(8, 8, 734, 154, C.pink);
+		const tutorialRankingFrame = createTutorialFrame(1004, 438, 270, 268, C.cyan);
+		// Repeat-use guidance is a warning, not a recommendation. Its fixed red
+		// overlay and cross deliberately differ from the pulsing suggestion frame.
+		const tutorialPenaltyWarning = new g.E({ scene: scene, x: 36, y: 593, width: 228, height: 88, hidden: true });
+		tutorialPenaltyWarning.append(new g.FilledRect({ scene: scene, width: 228, height: 88, cssColor: C.danger, opacity: 0.16 }));
+		tutorialPenaltyWarning.append(new g.FilledRect({ scene: scene, width: 228, height: 4, cssColor: C.danger }));
+		tutorialPenaltyWarning.append(new g.FilledRect({ scene: scene, y: 84, width: 228, height: 4, cssColor: C.danger }));
+		tutorialPenaltyWarning.append(new g.FilledRect({ scene: scene, width: 4, height: 88, cssColor: C.danger }));
+		tutorialPenaltyWarning.append(new g.FilledRect({ scene: scene, x: 224, width: 4, height: 88, cssColor: C.danger }));
+		tutorialPenaltyWarning.append(new g.FilledRect({ scene: scene, x: 10, y: 17, width: 208, height: 54, cssColor: "#10091a", opacity: 0.9 }));
+		createLabel(scene, tutorialPenaltyWarning, f42, "×", 18, 18, C.danger);
+		createLabel(scene, tutorialPenaltyWarning, f20, "連続は減点", 70, 27, "#fff");
+		tutorialLayer.append(tutorialPenaltyWarning);
+		const tutorialMessage = createPanel(scene, tutorialLayer, 40, 486, 930, 66, "#10091a", C.gold, 0.96);
+		const tutorialStepLabel = createLabel(scene, tutorialMessage, f20, "1 / 5", 18, 16, C.gold);
+		const tutorialTextLabel = createLabel(scene, tutorialMessage, f20, "", 118, 16, "#fff");
+		scene.append(tutorialLayer);
+
 		// Game state.
 		const judges = axes.map(function () {
 			const gauge = levelGauge(1);
@@ -546,6 +598,8 @@ function main(param) {
 		let turnFxLeft = 0, competitionFxLeft = 0, competitionFxDuration = 0, competitionReady = false, scoreSaved = false;
 		let aiSpecialCounts = [0, 0, 0, 0, 0, 0];
 		let activeAiSpecialTurns = currentStage.aiSpecialTurns;
+		let tutorialEnabled = false, tutorialStep = 0, tutorialSpecialView = false, tutorialPulseTick = -1;
+		let specialTutorialShown = false, specialTutorialActive = false;
 		let titleLayer = null;
 		function setPlayerVoltage(value) {
 			const bounded = clamp(value, 0, 100);
@@ -560,6 +614,128 @@ function main(param) {
 		const scoreTransferPool = [];
 		const actionResultPool = [];
 		const judgeScorePool = [];
+
+		function setTutorialFrame(frame, visible, pulse, refreshPulse) {
+			updateVisibility(frame.entity, visible);
+			if (!visible || !refreshPulse) return;
+			updateOpacity(frame.glow, 0.13 + pulse * 0.12);
+			for (let i = 0; i < frame.edges.length; ++i) {
+				updateOpacity(frame.edges[i], 0.68 + pulse * 0.32);
+			}
+		}
+		function resetTutorialEmphasis() {
+			for (let i = 0; i < timingZones.length; ++i) {
+				updateOpacity(timingZones[i].rect, 1);
+				updateOpacity(timingZones[i].label, 1);
+			}
+			if (cursor.scaleX !== 1 || cursor.scaleY !== 1) {
+				cursor.scaleX = 1; cursor.scaleY = 1; cursor.modified();
+			}
+			setTutorialFrame(tutorialControlsFrame, false, 0);
+			setTutorialFrame(tutorialTrendFrame, false, 0);
+			setTutorialFrame(tutorialActionFrame, false, 0);
+			setTutorialFrame(tutorialSpecialFrame, false, 0);
+			setTutorialFrame(tutorialTurnFrame, false, 0);
+			setTutorialFrame(tutorialJudgeFrame, false, 0);
+			setTutorialFrame(tutorialRankingFrame, false, 0);
+			if (tutorialPenaltyWarning.visible()) tutorialPenaltyWarning.hide();
+			if (specialTutorialHint.visible()) specialTutorialHint.hide();
+			tutorialPulseTick = -1;
+		}
+		function startSpecialTutorialIfNeeded() {
+			if (!tutorialEnabled || specialTutorialShown || !playerSpecialTurn) return;
+			specialTutorialShown = true;
+			specialTutorialActive = true;
+		}
+		function updateTutorialVisuals() {
+			const normalActive = tutorialEnabled && phase === "play" && turn >= 1 && turn <= 10;
+			const specialActive = tutorialEnabled && phase === "play" && specialTutorialActive && playerSpecialTurn && !playerActed;
+			if (!normalActive && !specialActive) {
+				if (tutorialLayer.visible()) tutorialLayer.hide();
+				if (tutorialStep !== 0 || tutorialSpecialView) {
+					tutorialStep = 0;
+					tutorialSpecialView = false;
+					resetTutorialEmphasis();
+				}
+				return;
+			}
+			if (!tutorialLayer.visible()) tutorialLayer.show();
+			if (normalActive) {
+				const nextStep = Math.floor((turn - 1) / 2) + 1;
+				if (tutorialStep !== nextStep || tutorialSpecialView) {
+					resetTutorialEmphasis();
+					tutorialSpecialView = false;
+					tutorialStep = nextStep;
+					tutorialTextLabel.x = 118;
+					tutorialTextLabel.modified();
+					updateLabel(tutorialStepLabel, tutorialStep + " / 5", C.gold);
+					updateLabel(tutorialTextLabel, [
+						"1ターン5秒！カーソルに合わせて選ぶ。 PERFECT / GOOD で高得点！",
+						"審査傾向に合うアクションほど高得点！",
+						"同じアクションの連続で -25% / -50%！",
+						"審査員ゲージが0になると交代。交代中は得点なし！",
+						"予選は2位以内で通過！"
+					][tutorialStep - 1]);
+				}
+			} else if (!tutorialSpecialView) {
+				resetTutorialEmphasis();
+				tutorialStep = 0;
+				tutorialSpecialView = true;
+				tutorialTextLabel.x = 220;
+				tutorialTextLabel.modified();
+				updateLabel(tutorialStepLabel, "SPECIAL", C.gold);
+				updateLabel(tutorialTextLabel, "全審査員へ一気に大アピール！タイミングよく押そう！");
+			}
+			// The highlight is decorative, so update it at 10 fps instead of forcing
+			// dozens of entity redraws on every 30 fps game frame.
+			const nextPulseTick = Math.floor(turnElapsed * 10);
+			const refreshPulse = tutorialPulseTick !== nextPulseTick;
+			if (refreshPulse) tutorialPulseTick = nextPulseTick;
+			const pulse = (Math.sin((nextPulseTick / 10) * Math.PI * 3) + 1) / 2;
+			setTutorialFrame(tutorialControlsFrame, normalActive && tutorialStep === 1, pulse, refreshPulse);
+			setTutorialFrame(tutorialTurnFrame, normalActive && tutorialStep === 1, pulse, refreshPulse);
+			setTutorialFrame(tutorialTrendFrame, normalActive && tutorialStep === 2, pulse, refreshPulse);
+			setTutorialFrame(tutorialJudgeFrame, normalActive && tutorialStep === 4, pulse, refreshPulse);
+			setTutorialFrame(tutorialRankingFrame, normalActive && tutorialStep === 5, pulse, refreshPulse);
+			if (tutorialStep === 1) {
+				if (refreshPulse) {
+					for (let i = 0; i < timingZones.length; ++i) {
+						const important = i >= 2 && i <= 4;
+						updateOpacity(timingZones[i].rect, important ? 0.88 + pulse * 0.12 : 0.58);
+						updateOpacity(timingZones[i].label, important ? 1 : 0.72);
+					}
+					const cursorScale = 1.08 + pulse * 0.12;
+					cursor.scaleX = cursorScale; cursor.scaleY = cursorScale; cursor.modified();
+				}
+				setTutorialFrame(tutorialActionFrame, false, pulse, refreshPulse);
+			} else if (tutorialStep === 2 && !playerSpecialTurn) {
+				const topAxis = trends.indexOf(Math.max.apply(null, trends));
+				// Style has two valid actions. Prefer the other one when the previous
+				// action was FRONT/BACK so the tutorial never recommends a repeat.
+				const bestAction = topAxis === 0 ? (lastPlayerAction === 1 ? 0 : 1) : topAxis + 1;
+				const actionFrameX = 36 + bestAction * 236;
+				if (tutorialActionFrame.entity.x !== actionFrameX) {
+					tutorialActionFrame.entity.x = actionFrameX;
+					tutorialActionFrame.entity.modified();
+				}
+				setTutorialFrame(tutorialActionFrame, true, pulse, refreshPulse);
+			} else {
+				setTutorialFrame(tutorialActionFrame, false, pulse, refreshPulse);
+			}
+			const showPenaltyWarning = normalActive && tutorialStep === 3 && lastPlayerAction >= 0 && !playerSpecialTurn;
+			if (showPenaltyWarning) {
+				const penaltyX = 36 + lastPlayerAction * 236;
+				if (tutorialPenaltyWarning.x !== penaltyX) {
+					tutorialPenaltyWarning.x = penaltyX;
+					tutorialPenaltyWarning.modified();
+				}
+				if (!tutorialPenaltyWarning.visible()) tutorialPenaltyWarning.show();
+			} else {
+				if (tutorialPenaltyWarning.visible()) tutorialPenaltyWarning.hide();
+			}
+			setTutorialFrame(tutorialSpecialFrame, specialActive, pulse, refreshPulse);
+			updateVisibility(specialTutorialHint, specialActive && normalActive);
+		}
 
 		function makeTrends() {
 			const order = shuffle([0, 1, 2], random), v = [1, 1, 1];
@@ -810,10 +986,11 @@ function main(param) {
 				const specialIndex = aiSpecialCounts[actor];
 				const specialTurns = activeAiSpecialTurns[actor] || [];
 				const unlockTurn = specialTurns[specialIndex] == null ? TOTAL_TURNS + 1 : specialTurns[specialIndex];
+				const tutorialBlocksSpecial = tutorialEnabled && turn <= 10;
 				// SPECIAL count is part of the stage balance. Once its distributed
 				// activation turn arrives, guarantee enough VOLTAGE to execute it.
-				if (a.special && specialIndex < currentStage.aiSpecialMax[actor] && turn >= unlockTurn) a.voltage = 100;
-				const special = !!a.special && a.voltage >= 100 && specialIndex < currentStage.aiSpecialMax[actor] && turn >= unlockTurn;
+				if (!tutorialBlocksSpecial && a.special && specialIndex < currentStage.aiSpecialMax[actor] && turn >= unlockTurn) a.voltage = 100;
+				const special = !tutorialBlocksSpecial && !!a.special && a.voltage >= 100 && specialIndex < currentStage.aiSpecialMax[actor] && turn >= unlockTurn;
 				const time = chooseAiTime(actor), action = chooseAiAction(actor);
 				plans.push({ actor: actor, action: action, time: time, acted: false, special: special, timing: judgeTiming(timingPositionAt(time)) });
 			}
@@ -857,6 +1034,7 @@ function main(param) {
 
 		function startTurn() {
 			++turn; turnElapsed = 0; playerActed = false; midpointCommented = false;
+			specialTutorialActive = false;
 			selectedPlayerAction = -1; cursorHoldPosition = 0; cursorLivePosition = 0;
 			rotateClosedJudges(); trends = nextTrends; nextTrends = makeTrends();
 			setStageAppearance();
@@ -869,6 +1047,7 @@ function main(param) {
 			if (playerSpecials === 0 && turn >= 13) setPlayerVoltage(100);
 			if (!voltageWasFull && isPlayerVoltageFull()) playSe("se_voltage_max", 0.76);
 			playerSpecialTurn = isPlayerVoltageFull();
+			startSpecialTutorialIfNeeded();
 			for (let i = 0; i < 6; ++i) {
 				setActorState(i, false);
 				setActorMotion(i, "idle", false);
@@ -883,16 +1062,25 @@ function main(param) {
 			setPlayerVoltage(playerVoltage);
 			if (phase !== "play" || playerActed || playerSpecialTurn || !isPlayerVoltageFull()) return;
 			playerSpecialTurn = true;
+			startSpecialTutorialIfNeeded();
 			judgmentLabel.text = "▲タイミングよくSPECIALを選択";
 			judgmentLabel.invalidate();
 		}
 
-		function startSelectedStage(stageIndex) {
+		function startSelectedStage(stageIndex, tutorialRequested) {
 			if (phase !== "title") return;
 			selectedStageIndex = clamp(stageIndex, 0, STAGE_CONFIGS.length - 1);
 			currentStage = STAGE_CONFIGS[selectedStageIndex];
 			activeAiSpecialTurns = buildAiSpecialTurns(currentStage);
+			tutorialEnabled = selectedStageIndex === 0 && tutorialRequested === true;
+			tutorialStep = 0;
+			tutorialSpecialView = false;
+			specialTutorialShown = false;
+			specialTutorialActive = false;
+			resetTutorialEmphasis();
+			tutorialLayer.hide();
 			storedData.selected = selectedStageIndex;
+			storedData.tutorialEnabled = tutorialRequested === true;
 			writeStoredData();
 			stopOpeningBgm();
 			if (titleLayer) titleLayer.hide();
@@ -1207,6 +1395,7 @@ function main(param) {
 			}
 			updateVisibility(specialButton, playerSpecialTurn);
 			updateOpacity(specialButton, phase === "play" && !playerActed ? 1 : 0.36);
+			updateTutorialVisuals();
 		}
 
 		function updateJudgeMotion(dt) {
@@ -1303,8 +1492,13 @@ function main(param) {
 			scene: scene,
 			font: gameFont,
 			initialSelected: selectedStageIndex,
+			initialTutorialEnabled: storedData.tutorialEnabled,
 			bests: storedData.bests,
 			onSelect: function () { playSe("se_timing_normal", 0.44); },
+			onTutorialChange: function (enabled) {
+				storedData.tutorialEnabled = enabled;
+				writeStoredData();
+			},
 			onStart: startSelectedStage
 		});
 		scene.append(titleLayer);
