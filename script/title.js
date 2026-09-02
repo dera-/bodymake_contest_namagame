@@ -11,6 +11,7 @@ function createTitleUi(param) {
 	const font = param.font;
 	let selected = param.initialSelected;
 	let tutorialEnabled = param.initialTutorialEnabled !== false;
+	let recommendationEnabled = param.initialRecommendationEnabled !== false;
 	const bests = param.bests;
 	let countdownFrames = 20 * g.game.fps;
 	let started = false;
@@ -98,7 +99,7 @@ function createTitleUi(param) {
 		if (started) return;
 		started = true;
 		playSelectSe();
-		param.onStart(selected, tutorialEnabled);
+		param.onStart(selected, tutorialEnabled, recommendationEnabled);
 	}
 
 	function backdrop(parent) {
@@ -245,10 +246,33 @@ function createTitleUi(param) {
 		}
 	}
 
-	button(titlePage, 205, 570, 315, 66, "ゲーム開始", "#ff4fa3", function () {
+	const recommendationToggle = new g.E({ scene: scene, x: 45, y: 570, width: 280, height: 66, touchable: true });
+	const recommendationToggleBg = rect(recommendationToggle, 0, 0, 280, 66, "#080916", 0.9);
+	rect(recommendationToggle, 0, 0, 5, 66, "#54d9ff", 1);
+	rect(recommendationToggle, 8, 8, 264, 50, "#10243a", 0.78);
+	label(recommendationToggle, "おすすめ表示", 20, 3, 20, "#54d9ff");
+	const recommendationStatusLabel = label(recommendationToggle, "現在 ON", 260, 3, 20, "#9be44f", { anchorX: 1 });
+	label(recommendationToggle, "OFF時：ボーナス加算", 140, 33, 24, "#ffd85d", { anchorX: 0.5 });
+	recommendationToggle.onPointDown.add(function () {
+		playSelectSe();
+		recommendationEnabled = !recommendationEnabled;
+		if (param.onRecommendationChange) param.onRecommendationChange(recommendationEnabled);
+		refreshRecommendationToggle();
+	});
+	titlePage.append(recommendationToggle);
+
+	function refreshRecommendationToggle() {
+		recommendationToggleBg.opacity = recommendationEnabled ? 0.98 : 0.78;
+		recommendationStatusLabel.text = recommendationEnabled ? "現在 ON" : "現在 OFF";
+		recommendationStatusLabel.textColor = recommendationEnabled ? "#9be44f" : "#ff8a95";
+		recommendationToggleBg.modified();
+		recommendationStatusLabel.invalidate();
+	}
+
+	button(titlePage, 345, 570, 280, 66, "ゲーム開始", "#ff4fa3", function () {
 		beginGame();
 	});
-	button(titlePage, 556, 570, 280, 66, "ルール説明", "#54d9ff", function () {
+	button(titlePage, 645, 570, 240, 66, "ルール説明", "#54d9ff", function () {
 		playSelectSe();
 		titlePage.hide();
 		rulesPage.show();
@@ -299,7 +323,7 @@ function createTitleUi(param) {
 		judging.append(new g.Sprite({ scene: scene, src: scene.asset.getImageById(judgeIcons[i]), srcWidth: 96, srcHeight: 120, x: 22 + i * 235, y: 64, width: 62, height: 78 }));
 		label(judging, judgeTexts[i], 91 + i * 235, 71, 24, "#fff", { width: 138, lineBreak: true });
 	}
-	label(judging, "審査傾向の上位アクションが有利 (毎ターン変わる)\nゲージ0で交代。交代中は審査なし", 22, 158, 24, "#ffd85d", { lineHeight: 30 });
+	label(judging, "傾向上位のアクションが有利 (毎ターン変化)\nゲージ0で交代。交代中は審査なし\nTOPアピール +1,000 ／ LASTアピール +500", 22, 150, 24, "#ffd85d", { lineHeight: 29 });
 
 	const special = framedPanel(rulesPage, 830, 330, 375, 250, "#111021", "#ffd85d");
 	label(special, "4  SPECIAL", 22, 14, 30, "#ffd85d");
@@ -320,6 +344,7 @@ function createTitleUi(param) {
 	root.append(rulesPage);
 	refreshCards();
 	refreshTutorialToggle();
+	refreshRecommendationToggle();
 	root.onUpdate.add(function () {
 		if (started) return;
 		countdownFrames = Math.max(0, countdownFrames - 1);

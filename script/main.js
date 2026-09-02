@@ -9,6 +9,7 @@ const createLoadingScene = require("bodymake-loading");
 const STORAGE_KEY = "shiny_muscle";
 const TREND_MULTIPLIERS = [1.60, 1.20, 0.80];
 const PLAYER_VOLTAGE_GAINS = { PERFECT: 18, GOOD: 15, NORMAL: 9, BAD: 0 };
+const RECOMMENDATION_OFF_BONUSES = [10000, 20000, 50000];
 const STAGE_CONFIGS = [
 	{
 		name: "予選", difficulty: "簡単", background: "stage_preliminary", bgm: "bgm_preliminary",
@@ -81,7 +82,7 @@ const UI_ASSET_IDS = [
 	"portrait_hero_bust_happy", "portrait_hero_bust_frustrated",
 	"rank_1", "rank_2", "rank_3", "rank_4", "rank_5", "rank_6",
 	"portrait_hero_special", "portrait_rival_special", "portrait_champion_special",
-	"timing_bad", "timing_normal", "timing_good", "timing_perfect", "timing_frame", "timing_cursor",
+	"timing_bad", "timing_normal", "timing_good", "timing_perfect", "timing_cursor",
 	"result_perfect", "result_good", "result_normal", "result_bad", "result_miss",
 	"game_font_atlas", "game_font_map"
 ];
@@ -118,10 +119,11 @@ function format(v) {
 }
 function normalizeStorageData(value) {
 	if (value && value.shiny_muscle) value = value.shiny_muscle;
-	const out = { selected: null, bests: [null, null, null], tutorialEnabled: true };
+	const out = { selected: null, bests: [null, null, null], tutorialEnabled: true, recommendationEnabled: true };
 	if (!value || typeof value !== "object") return out;
 	if (value.selected === 0 || value.selected === 1 || value.selected === 2) out.selected = value.selected;
 	if (typeof value.tutorialEnabled === "boolean") out.tutorialEnabled = value.tutorialEnabled;
+	if (typeof value.recommendationEnabled === "boolean") out.recommendationEnabled = value.recommendationEnabled;
 	if (Array.isArray(value.bests)) {
 		for (let i = 0; i < 3; ++i) {
 			const score = value.bests[i];
@@ -131,7 +133,12 @@ function normalizeStorageData(value) {
 	return out;
 }
 function storageSnapshot(data) {
-	return { selected: data.selected, bests: data.bests.slice(0, 3), tutorialEnabled: data.tutorialEnabled !== false };
+	return {
+		selected: data.selected,
+		bests: data.bests.slice(0, 3),
+		tutorialEnabled: data.tutorialEnabled !== false,
+		recommendationEnabled: data.recommendationEnabled !== false
+	};
 }
 function createLabel(scene, parent, font, text, x, y, color, opt) {
 	opt = opt || {};
@@ -234,10 +241,10 @@ function main(param) {
 			{ label: "表現力", trend: "表現力", color: C.purple }
 		];
 		const actions = [
-			{ label: "FRONT", advantage: "スタイル", base: [120, 80, 60], color: "#ff5aa8", icon: "action_front" },
-			{ label: "BACK", advantage: "スタイル", base: [140, 50, 80], color: "#d92f7d", icon: "action_back" },
-			{ label: "WALK", advantage: "ウォーク", base: [60, 140, 100], color: "#32bfe5", icon: "action_walk" },
-			{ label: "SMILE", advantage: "表現力", base: [50, 80, 150], color: "#a65de5", icon: "action_smile" }
+			{ label: "FRONT", advantage: "スタイル安定", base: [120, 80, 60], color: "#ff5aa8", icon: "action_front" },
+			{ label: "BACK", advantage: "スタイル特化", base: [140, 50, 80], color: "#d92f7d", icon: "action_back" },
+			{ label: "WALK", advantage: "ウォーク特化", base: [60, 140, 100], color: "#32bfe5", icon: "action_walk" },
+			{ label: "SMILE", advantage: "表現力特化", base: [50, 80, 150], color: "#a65de5", icon: "action_smile" }
 		];
 		const actors = [
 			{ no: 1, name: "PLAYER", color: "#ef493f", stats: [1, 1, 1] },
@@ -299,6 +306,22 @@ function main(param) {
 			const gauge = createBar(scene, p, 10, 104, 216, 20, "#0b0711", axes[i].color);
 			judgeUi.push({ panel: p, lv: lv, comment: comment, gauge: gauge, depart: 0, enter: 0 });
 		}
+		// Judge-award notices remain on screen while the judge panel departs, so the
+		// TOP/LAST bonus recipients can be read at the moment the evaluation closes.
+		const judgeAwardLayer = new g.E({ scene: scene, width: 744, height: 156 });
+		const judgeAwardFx = [];
+		for (let i = 0; i < 3; ++i) {
+			const notice = new g.Pane({ scene: scene, x: 18 + i * 244, y: 34, width: 224, height: 108, hidden: true });
+			notice.append(new g.FilledRect({ scene: scene, width: 224, height: 108, cssColor: "#10091a", opacity: 0.96 }));
+			notice.append(new g.FilledRect({ scene: scene, width: 224, height: 4, cssColor: axes[i].color }));
+			notice.append(new g.FilledRect({ scene: scene, y: 104, width: 224, height: 4, cssColor: C.gold }));
+			createLabel(scene, notice, f16, "TOPアピール", 112, 6, C.cyan, { anchorX: 0.5 });
+			const topLabel = createLabel(scene, notice, f16, "", 112, 30, "#fff", { anchorX: 0.5 });
+			createLabel(scene, notice, f16, "LASTアピール", 112, 56, C.gold, { anchorX: 0.5 });
+			const lastLabel = createLabel(scene, notice, f16, "", 112, 80, "#fff", { anchorX: 0.5 });
+			judgeAwardLayer.append(notice);
+			judgeAwardFx.push({ entity: notice, topLabel: topLabel, lastLabel: lastLabel, left: 0, duration: 1.55, startY: 34 });
+		}
 		const trendPanel = createPanel(scene, scene, 744, 14, 254, 142, "#100919", C.line, 0.97);
 		// Clip the title to suppress a tiny atlas-edge artifact after the last glyph.
 		const trendTitleClip = new g.Pane({ scene: scene, x: 10, y: 4, width: 116, height: 32 });
@@ -327,9 +350,7 @@ function main(param) {
 			if (actorIndex === 0) {
 				e.append(new g.FilledRect({ scene: scene, x: -30, y: 8, width: 160, height: 306, cssColor: C.pink, opacity: 0.1 }));
 				e.append(new g.FilledRect({ scene: scene, x: -30, y: 8, width: 160, height: 4, cssColor: C.pink, opacity: 0.9 }));
-				// Leave a notch for the rank medal so the player frame never crosses it.
-				e.append(new g.FilledRect({ scene: scene, x: -30, y: 310, width: 26, height: 4, cssColor: C.pink, opacity: 0.9 }));
-				e.append(new g.FilledRect({ scene: scene, x: 40, y: 310, width: 90, height: 4, cssColor: C.pink, opacity: 0.9 }));
+				e.append(new g.FilledRect({ scene: scene, x: -30, y: 310, width: 160, height: 4, cssColor: C.pink, opacity: 0.9 }));
 				e.append(new g.FilledRect({ scene: scene, x: -30, y: 8, width: 4, height: 306, cssColor: C.pink, opacity: 0.9 }));
 				e.append(new g.FilledRect({ scene: scene, x: 126, y: 8, width: 4, height: 306, cssColor: C.pink, opacity: 0.9 }));
 			}
@@ -347,7 +368,7 @@ function main(param) {
 				e.append(new g.FilledRect({ scene: scene, x: 14, y: 0, width: 72, height: 28, cssColor: a.color, opacity: 0.95 }));
 				createLabel(scene, e, f16, "No." + a.no, 50, 0, "#fff", { anchorX: 0.5 });
 			}
-			const rankSprite = new g.Sprite({ scene: scene, src: scene.asset.getImageById("rank_1"), srcX: 0, srcY: 0, srcWidth: 80, srcHeight: 80, x: 0, y: 304, width: 36, height: 36 });
+			const rankSprite = new g.Sprite({ scene: scene, src: scene.asset.getImageById("rank_1"), srcX: 0, srcY: 0, srcWidth: 80, srcHeight: 80, x: -24, y: 34, width: 36, height: 36 });
 			e.append(rankSprite);
 			stage.append(e);
 			return {
@@ -486,13 +507,26 @@ function main(param) {
 				x: 16, y: 11, width: 54, height: 54
 			}));
 			createLabel(scene, button, f30, actions[i].label, 137, 2, "#fff", { anchorX: 0.5 });
-			createLabel(scene, button, f16, actions[i].advantage, 78, 43, C.gold, { width: 68, textAlign: g.TextAlign.Center });
-			const repeatBadge = new g.Pane({ scene: scene, x: 146, y: 42, width: 70, height: 32, opacity: 0 });
-			repeatBadge.append(new g.FilledRect({ scene: scene, width: 70, height: 32, cssColor: "#09050d" }));
+			const effectLabel = createLabel(scene, button, f16, actions[i].advantage, 144, 43, C.gold, { anchorX: 0.5 });
+			const repeatBadge = new g.Pane({ scene: scene, x: 72, y: 42, width: 144, height: 32, opacity: 0 });
+			repeatBadge.append(new g.FilledRect({ scene: scene, width: 144, height: 32, cssColor: "#09050d" }));
 			button.append(repeatBadge);
-			const repeat = createLabel(scene, repeatBadge, f16, "", 0, 2, C.danger, { width: 70, textAlign: g.TextAlign.Center });
+			const repeat = createLabel(scene, repeatBadge, f16, "", 0, 2, C.danger, { width: 144, textAlign: g.TextAlign.Center });
+			const recommendFrame = new g.E({ scene: scene, x: -4, y: -4, width: 228, height: 86, hidden: true });
+			const recommendGlow = new g.FilledRect({ scene: scene, width: 228, height: 86, cssColor: C.gold, opacity: 0.12 });
+			recommendFrame.append(recommendGlow);
+			recommendFrame.append(new g.FilledRect({ scene: scene, width: 228, height: 5, cssColor: C.gold }));
+			recommendFrame.append(new g.FilledRect({ scene: scene, y: 81, width: 228, height: 5, cssColor: C.gold }));
+			recommendFrame.append(new g.FilledRect({ scene: scene, width: 5, height: 86, cssColor: C.gold }));
+			recommendFrame.append(new g.FilledRect({ scene: scene, x: 223, width: 5, height: 86, cssColor: C.gold }));
+			createLabel(scene, recommendFrame, f20, "★", 214, 4, "#fff", { anchorX: 1 });
+			button.append(recommendFrame);
 			controls.append(button);
-			actionUi.push({ button: button, base: base, repeatBadge: repeatBadge, repeat: repeat });
+			actionUi.push({
+				button: button, base: base, effectLabel: effectLabel,
+				repeatBadge: repeatBadge, repeat: repeat,
+				recommendFrame: recommendFrame, recommendGlow: recommendGlow
+			});
 		}
 		const specialButton = new g.E({ scene: scene, x: 28, y: 35, width: 930, height: 78, touchable: true, hidden: true });
 		specialButton.append(new g.FilledRect({ scene: scene, width: 930, height: 78, cssColor: C.gold, opacity: 0.94 }));
@@ -512,6 +546,8 @@ function main(param) {
 		scene.append(specialFx);
 		const specialAuraLayer = new g.E({ scene: scene, width: 1280, height: 570, hidden: true });
 		scene.append(specialAuraLayer);
+		// Award notices must stay readable even when a SPECIAL cut-in closes a judge.
+		scene.append(judgeAwardLayer);
 		const specialEffects = [];
 		const specialParticlePositions = [
 			[10, 34], [38, 12], [176, 14], [202, 48], [6, 132], [204, 146],
@@ -540,6 +576,18 @@ function main(param) {
 		const competitionFxMain = createLabel(scene, competitionFx, f25, "", 246, 6, "#fff", { anchorX: 0.5 });
 		const competitionFxSub = createLabel(scene, competitionFx, f20, "", 246, 39, C.gold, { anchorX: 0.5 });
 		scene.append(competitionFx);
+
+		// Compact cause-and-result feedback in the otherwise unused center of the
+		// stage header. Timing quality remains on the contestant as an image, while
+		// this line explains the action choice and the resulting score.
+		const choiceFxBaseY = 168;
+		const choiceFx = new g.E({ scene: scene, x: 258, y: choiceFxBaseY, width: 492, height: 42, hidden: true });
+		const choiceFxBg = new g.FilledRect({ scene: scene, width: 492, height: 42, cssColor: "#13091d", opacity: 0.94 });
+		const choiceFxTop = new g.FilledRect({ scene: scene, width: 492, height: 4, cssColor: C.gold });
+		choiceFx.append(choiceFxBg);
+		choiceFx.append(choiceFxTop);
+		const choiceFxLabel = createLabel(scene, choiceFx, f20, "", 246, 7, "#fff", { anchorX: 0.5 });
+		scene.append(choiceFx);
 
 		// The preliminary tutorial points at the live UI instead of stopping play
 		// for a separate explanation screen.
@@ -580,6 +628,8 @@ function main(param) {
 		const tutorialMessage = createPanel(scene, tutorialLayer, 40, 486, 930, 66, "#10091a", C.gold, 0.96);
 		const tutorialStepLabel = createLabel(scene, tutorialMessage, f20, "1 / 5", 18, 16, C.gold);
 		const tutorialTextLabel = createLabel(scene, tutorialMessage, f20, "", 118, 16, "#fff");
+		const tutorialTextSubLabel = createLabel(scene, tutorialMessage, f20, "", 118, 34, C.muted);
+		tutorialTextSubLabel.hide();
 		scene.append(tutorialLayer);
 
 		// Game state.
@@ -595,11 +645,13 @@ function main(param) {
 		let playerVoltage = 0, playerSpecials = 0, combo = 0;
 		let lastPlayerAction = -1, repeatCount = 0;
 		let selectedPlayerAction = -1, cursorHoldPosition = 0, cursorLivePosition = 0, lastTurnMiss = false;
-		let turnFxLeft = 0, competitionFxLeft = 0, competitionFxDuration = 0, competitionReady = false, scoreSaved = false;
+		let turnFxLeft = 0, competitionFxLeft = 0, competitionFxDuration = 0, choiceFxLeft = 0, competitionReady = false, scoreSaved = false;
 		let aiSpecialCounts = [0, 0, 0, 0, 0, 0];
 		let activeAiSpecialTurns = currentStage.aiSpecialTurns;
 		let tutorialEnabled = false, tutorialStep = 0, tutorialSpecialView = false, tutorialPulseTick = -1;
 		let specialTutorialShown = false, specialTutorialActive = false;
+		let recommendPulseTick = -1, recommendationEnabled = true;
+		let recommendationDirty = true, recommendedActionCache = -1;
 		let titleLayer = null;
 		function setPlayerVoltage(value) {
 			const bounded = clamp(value, 0, 100);
@@ -608,10 +660,8 @@ function main(param) {
 		}
 		function addPlayerVoltage(value) { return setPlayerVoltage(playerVoltage + value); }
 		function isPlayerVoltageFull() { return playerVoltage >= 100; }
-		const scoreTransferStates = [];
 		const actionResultStates = [];
 		const judgeScoreStates = [];
-		const scoreTransferPool = [];
 		const actionResultPool = [];
 		const judgeScorePool = [];
 
@@ -624,6 +674,7 @@ function main(param) {
 			}
 		}
 		function resetTutorialEmphasis() {
+			if (tutorialTextSubLabel.visible()) tutorialTextSubLabel.hide();
 			for (let i = 0; i < timingZones.length; ++i) {
 				updateOpacity(timingZones[i].rect, 1);
 				updateOpacity(timingZones[i].label, 1);
@@ -667,21 +718,27 @@ function main(param) {
 					tutorialSpecialView = false;
 					tutorialStep = nextStep;
 					tutorialTextLabel.x = 118;
+					tutorialTextLabel.y = tutorialStep === 4 ? 5 : 16;
 					tutorialTextLabel.modified();
 					updateLabel(tutorialStepLabel, tutorialStep + " / 5", C.gold);
 					updateLabel(tutorialTextLabel, [
 						"1ターン5秒！カーソルに合わせて選ぶ。 PERFECT / GOOD で高得点！",
-						"審査傾向に合うアクションほど高得点！",
+						recommendationEnabled ? "光るボタンはおすすめ！審査傾向と審査員を見て選ぼう。" : "審査傾向と審査員を見て、有利なアクションを選ぼう！",
 						"同じアクションの連続で -25% / -50%！",
-						"審査員ゲージが0になると交代。交代中は得点なし！",
+						"審査員ゲージ0で交代！最多=TOP、最後=LASTアピール",
 						"予選は2位以内で通過！"
 					][tutorialStep - 1]);
+					if (tutorialStep === 4) {
+						updateLabel(tutorialTextSubLabel, "交代中は審査なし。ゲージ残量に注意！", C.muted);
+						tutorialTextSubLabel.show();
+					}
 				}
 			} else if (!tutorialSpecialView) {
 				resetTutorialEmphasis();
 				tutorialStep = 0;
 				tutorialSpecialView = true;
 				tutorialTextLabel.x = 220;
+				tutorialTextLabel.y = 16;
 				tutorialTextLabel.modified();
 				updateLabel(tutorialStepLabel, "SPECIAL", C.gold);
 				updateLabel(tutorialTextLabel, "全審査員へ一気に大アピール！タイミングよく押そう！");
@@ -708,17 +765,20 @@ function main(param) {
 					cursor.scaleX = cursorScale; cursor.scaleY = cursorScale; cursor.modified();
 				}
 				setTutorialFrame(tutorialActionFrame, false, pulse, refreshPulse);
-			} else if (tutorialStep === 2 && !playerSpecialTurn) {
-				const topAxis = trends.indexOf(Math.max.apply(null, trends));
-				// Style has two valid actions. Prefer the other one when the previous
-				// action was FRONT/BACK so the tutorial never recommends a repeat.
-				const bestAction = topAxis === 0 ? (lastPlayerAction === 1 ? 0 : 1) : topAxis + 1;
-				const actionFrameX = 36 + bestAction * 236;
-				if (tutorialActionFrame.entity.x !== actionFrameX) {
-					tutorialActionFrame.entity.x = actionFrameX;
-					tutorialActionFrame.entity.modified();
+			} else if (tutorialStep === 2 && !playerSpecialTurn && recommendationEnabled) {
+				// Use the same live recommendation as normal play so tutorial guidance
+				// never contradicts closed judges or the repeat-action penalty.
+				const bestAction = currentRecommendedActionIndex();
+				if (bestAction < 0) {
+					setTutorialFrame(tutorialActionFrame, false, pulse, refreshPulse);
+				} else {
+					const actionFrameX = 36 + bestAction * 236;
+					if (tutorialActionFrame.entity.x !== actionFrameX) {
+						tutorialActionFrame.entity.x = actionFrameX;
+						tutorialActionFrame.entity.modified();
+					}
+					setTutorialFrame(tutorialActionFrame, true, pulse, refreshPulse);
 				}
-				setTutorialFrame(tutorialActionFrame, true, pulse, refreshPulse);
 			} else {
 				setTutorialFrame(tutorialActionFrame, false, pulse, refreshPulse);
 			}
@@ -749,6 +809,102 @@ function main(param) {
 		function actionTrendMultiplier(actionIndex) {
 			return trends[actionIndex <= 1 ? 0 : actionIndex - 1];
 		}
+		function actionAxisIndex(actionIndex) { return actionIndex <= 1 ? 0 : actionIndex - 1; }
+		function actionTrendRank(actionIndex) {
+			const axis = actionAxisIndex(actionIndex);
+			let rank = 0;
+			for (let i = 0; i < trends.length; ++i) if (trends[i] > trends[axis]) ++rank;
+			return rank;
+		}
+		function expectedRepeatMultiplier(actionIndex) {
+			if (lastPlayerAction !== actionIndex) return 1;
+			return repeatCount >= 2 ? 0.5 : 0.75;
+		}
+		function recommendedActionIndex() {
+			let activeJudgeCount = 0;
+			for (let axis = 0; axis < judges.length; ++axis) if (!judges[axis].closed) ++activeJudgeCount;
+			if (activeJudgeCount === 0) return -1;
+			let bestAction = 0, bestValue = -1;
+			const expectedValues = [];
+			for (let actionIndex = 0; actionIndex < actions.length; ++actionIndex) {
+				let value = 0;
+				for (let axis = 0; axis < judges.length; ++axis) {
+					if (judges[axis].closed) continue;
+					value += actions[actionIndex].base[axis] * levelMulti(judges[axis].level);
+				}
+				value *= actionTrendMultiplier(actionIndex) * expectedRepeatMultiplier(actionIndex);
+				if (actionTrendRank(actionIndex) === 0) value *= 1 + Math.min(0.25, Math.floor(combo / 5) * 0.05);
+				expectedValues[actionIndex] = value;
+				if (value > bestValue) { bestAction = actionIndex; bestValue = value; }
+			}
+			// When a repeated action only wins by a small margin, recommend the best
+			// alternative to avoid showing a red penalty and a gold suggestion together.
+			if (bestAction === lastPlayerAction && expectedRepeatMultiplier(bestAction) < 1) {
+				let alternative = -1, alternativeValue = -1;
+				for (let i = 0; i < expectedValues.length; ++i) {
+					if (i === bestAction) continue;
+					if (expectedValues[i] > alternativeValue) { alternative = i; alternativeValue = expectedValues[i]; }
+				}
+				if (alternative >= 0 && alternativeValue >= bestValue * 0.9) bestAction = alternative;
+			}
+			return bestAction;
+		}
+		function currentRecommendedActionIndex() {
+			if (!recommendationEnabled) return -1;
+			if (recommendationDirty) {
+				recommendedActionCache = recommendedActionIndex();
+				recommendationDirty = false;
+			}
+			return recommendedActionCache;
+		}
+		function updateActionRecommendation() {
+			const active = recommendationEnabled && phase === "play" && !playerActed && !playerSpecialTurn;
+			const recommended = active ? currentRecommendedActionIndex() : -1;
+			for (let i = 0; i < actionUi.length; ++i) updateVisibility(actionUi[i].recommendFrame, i === recommended);
+			if (phase === "play" && !playerActed && playerSpecialTurn) {
+				updateLabel(judgmentLabel, "▲タイミングよくSPECIALを選択", C.gold);
+			} else if (active && recommended >= 0) {
+				updateLabel(judgmentLabel, "▲おすすめ：" + actions[recommended].label + "  光るボタンをタイミングよく選択", C.gold);
+			} else if (active) {
+				updateLabel(judgmentLabel, "▲審査員交代中　次ターンに備えよう", C.muted);
+			} else {
+				updateLabel(judgmentLabel, "▲タイミングよくいずれかのアクションを選択", C.gold);
+			}
+			if (recommended < 0) { recommendPulseTick = -1; return; }
+			const nextTick = Math.floor(turnElapsed * 10);
+			if (recommendPulseTick === nextTick) return;
+			recommendPulseTick = nextTick;
+			const pulse = (Math.sin((nextTick / 10) * Math.PI * 3) + 1) / 2;
+			updateOpacity(actionUi[recommended].recommendGlow, 0.10 + pulse * 0.18);
+		}
+		function showPlayerChoiceFeedback(actionIndex, special, scoreGain, repeatMod, judgePresenceMask) {
+			let reason, accent = C.cyan;
+			const activeJudgeCount = (judgePresenceMask & 1 ? 1 : 0) + (judgePresenceMask & 2 ? 1 : 0) + (judgePresenceMask & 4 ? 1 : 0);
+			if (activeJudgeCount === 0) {
+				reason = "審査なし"; accent = C.danger;
+			} else if (special) {
+				reason = activeJudgeCount === 3 ? "全審査へ大UP" : activeJudgeCount + "人へアピール";
+				accent = C.gold;
+			} else if ((judgePresenceMask & (1 << actionAxisIndex(actionIndex))) === 0) {
+				reason = "対応審査員不在"; accent = C.danger;
+			} else if (repeatMod < 1) {
+				reason = "連続 " + (repeatMod <= 0.5 ? "-50%" : "-25%"); accent = C.danger;
+			} else {
+				const rank = actionTrendRank(actionIndex);
+				reason = rank === 0 ? "相性◎" : (rank === 1 ? "相性○" : "相性△");
+				accent = rank === 0 ? C.gold : (rank === 1 ? C.cyan : C.muted);
+			}
+			const actionName = special ? "SPECIAL" : actions[actionIndex].label;
+			choiceFxBg.cssColor = accent === C.danger ? "#35101d" : "#10243a";
+			choiceFxTop.cssColor = accent;
+			choiceFxBg.modified(); choiceFxTop.modified();
+			updateLabel(choiceFxLabel, actionName + "  " + reason + "  +" + format(scoreGain) + "pt", accent);
+			choiceFxLeft = 1.25;
+			choiceFx.y = choiceFxBaseY;
+			choiceFx.opacity = 1;
+			if (!choiceFx.visible()) choiceFx.show();
+			choiceFx.modified();
+		}
 		function ranking() {
 			if (rankingDirty) {
 				rankingCache.sort(function (a, b) { return scores[b] - scores[a] || a - b; });
@@ -756,7 +912,8 @@ function main(param) {
 			}
 			return rankingCache;
 		}
-		function liveRankingScore() { return Math.max(0, Math.floor(scores[0] * currentStage.scoreMultiplier)); }
+		function recommendationOffBonus() { return recommendationEnabled ? 0 : RECOMMENDATION_OFF_BONUSES[selectedStageIndex]; }
+		function liveRankingScore() { return Math.max(0, Math.floor(scores[0] * currentStage.scoreMultiplier) + recommendationOffBonus()); }
 		function syncLiveRankingScore() { g.game.vars.gameState.score = liveRankingScore(); }
 		function addActorScore(actorIndex, value) {
 			scores[actorIndex] += value;
@@ -869,7 +1026,7 @@ function main(param) {
 			const lines = [];
 			if (bigSuccess) {
 				lines.push(crossedIn ? (currentStage.clearRank === 1 ? "優勝圏内に浮上！" : "通過圏内に浮上！") : "▲ " + before.playerRank + "位 → " + after.playerRank + "位！");
-				lines.push(gained.join("・") + " TOP奪取  +" + format(scoreGain) + "pt");
+				lines.push(gained.join("・") + " TOP奪取！");
 				showCompetitionNotice(lines, true, true, false);
 				return;
 			}
@@ -887,6 +1044,7 @@ function main(param) {
 
 			if (lines.length < 2) {
 				if (rankDown && sourceActor > 0) lines.push("No." + actors[sourceActor].no + "に抜かれた！");
+				else if (gained.length > 0 || lost.length > 0) lines.push("");
 				else if (sourceActor === 0 && scoreGain > 0) lines.push("+" + format(scoreGain) + "pt");
 				else lines.push(rankGapText(ranking()));
 			}
@@ -1029,11 +1187,14 @@ function main(param) {
 				ui.panel.modified();
 				setJudgeComment(i, ["次は立ち姿を見せて", "さあ、歩きを見せて！", "次は表情で魅せて"][i], axes[i].color);
 			}
-			if (added) playSe("se_judge_add", 0.68);
+			if (added) {
+				playSe("se_judge_add", 0.68);
+			}
 		}
 
 		function startTurn() {
 			++turn; turnElapsed = 0; playerActed = false; midpointCommented = false;
+			recommendationDirty = true;
 			specialTutorialActive = false;
 			selectedPlayerAction = -1; cursorHoldPosition = 0; cursorLivePosition = 0;
 			rotateClosedJudges(); trends = nextTrends; nextTrends = makeTrends();
@@ -1067,12 +1228,13 @@ function main(param) {
 			judgmentLabel.invalidate();
 		}
 
-		function startSelectedStage(stageIndex, tutorialRequested) {
+		function startSelectedStage(stageIndex, tutorialRequested, recommendationRequested) {
 			if (phase !== "title") return;
 			selectedStageIndex = clamp(stageIndex, 0, STAGE_CONFIGS.length - 1);
 			currentStage = STAGE_CONFIGS[selectedStageIndex];
 			activeAiSpecialTurns = buildAiSpecialTurns(currentStage);
 			tutorialEnabled = selectedStageIndex === 0 && tutorialRequested === true;
+			recommendationEnabled = recommendationRequested !== false;
 			tutorialStep = 0;
 			tutorialSpecialView = false;
 			specialTutorialShown = false;
@@ -1081,6 +1243,7 @@ function main(param) {
 			tutorialLayer.hide();
 			storedData.selected = selectedStageIndex;
 			storedData.tutorialEnabled = tutorialRequested === true;
+			storedData.recommendationEnabled = recommendationEnabled;
 			writeStoredData();
 			stopOpeningBgm();
 			if (titleLayer) titleLayer.hide();
@@ -1092,8 +1255,9 @@ function main(param) {
 			setPlayerVoltage(0); playerSpecials = 0; combo = 0; timingDifficulty = 0;
 			lastPlayerAction = -1; repeatCount = 0;
 			selectedPlayerAction = -1; cursorHoldPosition = 0; cursorLivePosition = 0; lastTurnMiss = false;
-			turnFxLeft = 0; competitionReady = false; scoreSaved = false; aiSpecialCounts = [0, 0, 0, 0, 0, 0];
-			g.game.vars.gameState.score = 0;
+			turnFxLeft = 0; choiceFxLeft = 0; competitionReady = false; scoreSaved = false; aiSpecialCounts = [0, 0, 0, 0, 0, 0];
+			recommendationDirty = true; recommendedActionCache = -1; recommendPulseTick = -1;
+			syncLiveRankingScore();
 
 			for (let i = 0; i < judges.length; ++i) {
 				const gauge = levelGauge(1);
@@ -1101,6 +1265,7 @@ function main(param) {
 				judges[i].totals = [0, 0, 0, 0, 0, 0]; judges[i].top = -1; judges[i].closed = false;
 				judgeUi[i].panel.y = 14; judgeUi[i].panel.opacity = 1;
 				judgeUi[i].depart = 0; judgeUi[i].enter = 0; judgeUi[i].panel.modified();
+				judgeAwardFx[i].left = 0; judgeAwardFx[i].entity.hide();
 			}
 			for (let i = 1; i < actors.length; ++i) actors[i].voltage = currentStage.aiVoltage[i];
 			for (let i = 0; i < actors.length; ++i) {
@@ -1109,6 +1274,7 @@ function main(param) {
 			}
 			turnFx.hide();
 			competitionFxLeft = 0; competitionFx.hide();
+			choiceFx.hide();
 			phase = "ready";
 			setStageAppearance(); updateTrendUi(); updateTimingZones(); refreshHud();
 		}
@@ -1118,37 +1284,20 @@ function main(param) {
 			const topActor = order[0];
 			addActorScore(topActor, 1000); addActorScore(lastActor, 500);
 			j.left = 0; j.top = topActor; j.closed = true;
+			recommendationDirty = true;
 			setJudgeComment(index, judgeFinishLine(index, actors[lastActor].no), C.gold);
 			judgeUi[index].depart = 0.5;
 			if (topActor === 0) addPlayerVoltage(12);
 			if (lastActor === 0) addPlayerVoltage(9);
-		}
-
-		function playScoreTransfer(judgeIndex, actorIndex, value) {
-			const startX = 12 + judgeIndex * 244 + 118;
-			const startY = 132;
-			const endX = 12 + actorX[actorIndex] + 50;
-			const endY = 356;
-			let fx = scoreTransferPool.pop();
-			if (!fx) {
-				const entity = new g.E({ scene: scene, width: 96, height: 30 });
-				const marker = new g.FilledRect({ scene: scene, x: 2, y: 7, width: 16, height: 16, cssColor: axes[judgeIndex].color, angle: 45, opacity: 0.95 });
-				entity.append(marker);
-				entity.append(new g.FilledRect({ scene: scene, x: 5, y: 10, width: 10, height: 10, cssColor: "#fff", angle: 45, opacity: 0.9 }));
-				const label = createLabel(scene, entity, f16, "", 24, 2, axes[judgeIndex].color);
-				scene.append(entity);
-				fx = { entity: entity, marker: marker, label: label };
-			}
-			fx.entity.x = startX - 48; fx.entity.y = startY; fx.entity.opacity = 1; if (!fx.entity.visible()) fx.entity.show(); fx.entity.modified();
-			if (fx.marker.cssColor !== axes[judgeIndex].color) { fx.marker.cssColor = axes[judgeIndex].color; fx.marker.modified(); }
-			updateLabel(fx.label, "+" + value, axes[judgeIndex].color);
-			fx.left = 0.72; fx.startX = startX - 48; fx.startY = startY; fx.endX = endX - 48; fx.endY = endY;
-			scoreTransferStates.push(fx);
+			const award = { judgeIndex: index, topActor: topActor, lastActor: lastActor };
+			showJudgeAwardFeedback(award);
+			return award;
 		}
 
 		function applyActorAppeal(actorIndex, actionIndex, timing, special, powerMod) {
 			const a = actors[actorIndex], action = actions[actionIndex];
 			const appeals = [0, 0, 0];
+			const awards = [];
 			let judgeLeft = false;
 			for (let axis = 0; axis < 3; ++axis) {
 				const j = judges[axis];
@@ -1157,24 +1306,23 @@ function main(param) {
 				const trendMultiplier = special ? trends[axis] : actionTrendMultiplier(actionIndex);
 				const value = Math.round(base * timing.multi * trendMultiplier * a.stats[axis] * powerMod);
 				appeals[axis] = value;
-				playScoreTransfer(axis, actorIndex, value);
 				const oldTop = j.top;
 				j.left -= value; j.totals[actorIndex] += value; addActorScore(actorIndex, value * levelMulti(j.level));
 				j.top = j.totals.indexOf(Math.max.apply(null, j.totals));
-				if (j.left <= 0) { closeJudge(axis, actorIndex); judgeLeft = true; }
+				if (j.left <= 0) { awards.push(closeJudge(axis, actorIndex)); judgeLeft = true; }
 				else if (j.top !== oldTop) setJudgeComment(axis, judgeLeadLine(axis, actors[j.top].no), axes[axis].color);
 				else if (j.left / j.max < 0.2) setJudgeComment(axis, judgeNearLine(axis), C.gold);
 			}
 			if (judgeLeft) playSe("se_judge_leave", 0.7);
-			return appeals;
+			return { appeals: appeals, awards: awards };
 		}
 
 		function showActionResult(actorIndex, timingName) {
 			const assetId = ACTION_RESULT_ASSET_IDS[timingName];
 			if (!assetId) return;
-			const width = 150, height = 40;
+			const width = 120, height = 32;
 			const startX = 12 + actorX[actorIndex] + 50 - width / 2;
-			const startY = 210;
+			const startY = 226;
 			let fx = actionResultPool.pop();
 			if (!fx) {
 				const sprite = new g.Sprite({
@@ -1203,8 +1351,24 @@ function main(param) {
 				judgeScoreStates.push(fx);
 			}
 		}
-		function showPlayerAppealFeedback(appeals) {
-			showJudgeAppealFeedback(appeals);
+		function showJudgeAwardFeedback(award) {
+			const fx = judgeAwardFx[award.judgeIndex];
+			updateLabel(fx.topLabel, "No." + actors[award.topActor].no + " +1,000", award.topActor === 0 ? C.pink : "#fff");
+			updateLabel(fx.lastLabel, "No." + actors[award.lastActor].no + " +500", award.lastActor === 0 ? C.pink : "#fff");
+			fx.left = fx.duration;
+			fx.entity.y = fx.startY;
+			fx.entity.opacity = 1;
+			if (!fx.entity.visible()) fx.entity.show();
+			fx.entity.modified();
+		}
+		function showPlayerAppealFeedback(appeals, awards) {
+			if (!awards.length) {
+				showJudgeAppealFeedback(appeals);
+				return;
+			}
+			const visibleAppeals = appeals.slice();
+			for (let i = 0; i < awards.length; ++i) visibleAppeals[awards[i].judgeIndex] = 0;
+			showJudgeAppealFeedback(visibleAppeals);
 		}
 
 		function showSpecial(actorIndex) {
@@ -1273,12 +1437,14 @@ function main(param) {
 			plan.acted = true;
 			const competitionBefore = competitionSnapshot();
 			const playerVoltageWasFull = isPlayerVoltageFull();
-			applyActorAppeal(plan.actor, plan.action, plan.timing, plan.special, currentStage.aiPower * currentStage.aiActorPower[plan.actor]);
-			if (competitionReady) showCompetitionChanges(competitionBefore, plan.actor, plan.timing.name);
+			const appealResult = applyActorAppeal(plan.actor, plan.action, plan.timing, plan.special, currentStage.aiPower * currentStage.aiActorPower[plan.actor]);
+			if (competitionReady && appealResult.awards.length === 0) showCompetitionChanges(competitionBefore, plan.actor, plan.timing.name);
 			syncPlayerSpecialAvailability();
 			if (!playerVoltageWasFull && isPlayerVoltageFull()) playSe("se_voltage_max", 0.76);
 			const a = actors[plan.actor];
-			if (plan.special) { a.voltage = 0; ++aiSpecialCounts[plan.actor]; showSpecial(plan.actor); }
+			if (plan.special) {
+				a.voltage = 0; ++aiSpecialCounts[plan.actor]; showSpecial(plan.actor);
+			}
 			else {
 				const gain = plan.timing.voltage * actionTrendVoltageMultiplier(plan.action) * (plan.action === 3 ? 1.3 : 1) * (a.special ? 1.25 : 1) * currentStage.aiVoltageGain;
 				a.voltage = clamp(a.voltage + gain, 0, 100);
@@ -1300,6 +1466,10 @@ function main(param) {
 			const playerVoltageWasFull = isPlayerVoltageFull();
 			const timing = judgeTiming(cursorHoldPosition);
 			const special = playerSpecialTurn;
+			let judgePresenceMask = 0;
+			for (let judgeIndex = 0; judgeIndex < judges.length; ++judgeIndex) {
+				if (!judges[judgeIndex].closed) judgePresenceMask |= 1 << judgeIndex;
+			}
 			if (!special) {
 				const timingSeVolume = { PERFECT: 0.68, GOOD: 0.62, NORMAL: 0.58, BAD: 0.62 }[timing.name];
 				playSe(TIMING_SE_ASSET_IDS[timing.name], timingSeVolume);
@@ -1311,18 +1481,21 @@ function main(param) {
 				repeatMod *= repeatCount === 2 ? 0.75 : (repeatCount >= 3 ? 0.5 : 1);
 			}
 			const comboMod = !special && actionTrendMultiplier(actionIndex) === TREND_MULTIPLIERS[0] ? 1 + Math.min(0.25, Math.floor(combo / 5) * 0.05) : 1;
-			const appeals = applyActorAppeal(0, actionIndex, timing, special, repeatMod * comboMod);
+			const appealResult = applyActorAppeal(0, actionIndex, timing, special, repeatMod * comboMod);
+			const appeals = appealResult.appeals;
+			const playerScoreGain = Math.max(0, Math.floor(scores[0] - competitionBefore.playerScore));
 			competitionReady = true;
-			showCompetitionChanges(competitionBefore, 0, timing.name);
+			if (appealResult.awards.length === 0) showCompetitionChanges(competitionBefore, 0, timing.name);
 			if (timing.name === "GOOD" || timing.name === "PERFECT") ++combo; else combo = 0;
 			if (special) { setPlayerVoltage(0); ++playerSpecials; showSpecial(0); }
 			else addPlayerVoltage(PLAYER_VOLTAGE_GAINS[timing.name] * actionTrendVoltageMultiplier(actionIndex) * (actionIndex === 3 ? 1.3 : 1));
 			if (!special && timing.name === "BAD") setPlayerVoltage(voltageBeforeAction);
 			if (!special && !playerVoltageWasFull && isPlayerVoltageFull()) playSe("se_voltage_max", 0.76);
-			showPlayerAppealFeedback(appeals);
+			showPlayerAppealFeedback(appeals, appealResult.awards);
 			setActorState(0, true);
 			playActorAnimation(0, actionIndex, special);
 			showActionResult(0, timing.name);
+			showPlayerChoiceFeedback(actionIndex, special, playerScoreGain, repeatMod, judgePresenceMask);
 		}
 
 		function resolveMiss() {
@@ -1387,14 +1560,16 @@ function main(param) {
 				updateOpacity(actionUi[i].base, selected ? 1 : (available ? 0.94 : (playerActed ? 0.16 : 0.5)));
 				let repeatPenalty = "";
 				if (lastPlayerAction === i) {
-					if (selected) repeatPenalty = repeatCount >= 3 ? "-50%" : (repeatCount === 2 ? "-25%" : "");
-					else repeatPenalty = repeatCount >= 2 ? "-50%" : "-25%";
+					if (selected) repeatPenalty = repeatCount >= 3 ? "連続 -50%" : (repeatCount === 2 ? "連続 -25%" : "");
+					else repeatPenalty = repeatCount >= 2 ? "連続 -50%" : "連続 -25%";
 				}
 				updateLabel(actionUi[i].repeat, repeatPenalty);
 				updateOpacity(actionUi[i].repeatBadge, repeatPenalty ? 0.82 : 0);
+				updateVisibility(actionUi[i].effectLabel, !repeatPenalty);
 			}
 			updateVisibility(specialButton, playerSpecialTurn);
 			updateOpacity(specialButton, phase === "play" && !playerActed ? 1 : 0.36);
+			updateActionRecommendation();
 			updateTutorialVisuals();
 		}
 
@@ -1437,7 +1612,8 @@ function main(param) {
 			const playerRank = rank.indexOf(0) + 1;
 			const qualified = playerRank <= currentStage.clearRank;
 			const coefficient = clearCoefficient(playerRank);
-			const registeredScore = Math.max(0, Math.floor(scores[0] * currentStage.scoreMultiplier * coefficient));
+			const offBonus = recommendationOffBonus();
+			const registeredScore = Math.max(0, Math.floor(scores[0] * currentStage.scoreMultiplier * coefficient) + offBonus);
 			g.game.vars.gameState.score = registeredScore;
 			const resultMe = scene.asset.getAudioById(qualified ? "me_victory" : "me_defeat").play();
 			if (resultMe && resultMe.changeVolume) resultMe.changeVolume(0.48);
@@ -1465,6 +1641,7 @@ function main(param) {
 			p.append(new g.FilledRect({ scene: scene, x: 18, y: 500, width: 542, height: 114, cssColor: "#261133", opacity: 0.92 }));
 			createLabel(scene, p, f25, "YOUR SCORE", 289, 510, "#fff", { anchorX: 0.5 });
 			createLabel(scene, p, f42, format(registeredScore) + " pt", 289, 548, C.gold, { anchorX: 0.5 });
+			if (offBonus > 0) createLabel(scene, p, f20, "おすすめOFF ボーナス +" + format(offBonus) + "pt 加算済み", 289, 590, C.cyan, { anchorX: 0.5 });
 
 			const dialogue = getResultDialogue(selectedStageIndex, playerRank, qualified);
 			resultLayer.append(new g.Sprite({ scene: scene, src: scene.asset.getImageById("speech_bubble"), x: 638, y: 36, width: 610, height: 183 }));
@@ -1493,10 +1670,15 @@ function main(param) {
 			font: gameFont,
 			initialSelected: selectedStageIndex,
 			initialTutorialEnabled: storedData.tutorialEnabled,
+			initialRecommendationEnabled: storedData.recommendationEnabled,
 			bests: storedData.bests,
 			onSelect: function () { playSe("se_timing_normal", 0.44); },
 			onTutorialChange: function (enabled) {
 				storedData.tutorialEnabled = enabled;
+				writeStoredData();
+			},
+			onRecommendationChange: function (enabled) {
+				storedData.recommendationEnabled = enabled;
 				writeStoredData();
 			},
 			onStart: startSelectedStage
@@ -1521,7 +1703,7 @@ function main(param) {
 				const fx = actionResultStates[i];
 				fx.left -= dt;
 				const progress = clamp((fx.duration - fx.left) / fx.duration, 0, 1);
-				fx.entity.y = fx.startY - 42 * (1 - Math.pow(1 - progress, 2));
+				fx.entity.y = fx.startY - 10 * (1 - Math.pow(1 - progress, 2));
 				fx.entity.opacity = clamp(fx.left / 0.30, 0, 1);
 				if (fx.left <= 0) { fx.entity.hide(); actionResultStates.splice(i, 1); actionResultPool.push(fx); }
 				else fx.entity.modified();
@@ -1533,6 +1715,16 @@ function main(param) {
 				fx.entity.y = fx.startY - 34 * progress;
 				fx.entity.opacity = clamp(fx.left / 0.32, 0, 1);
 				if (fx.left <= 0) { fx.entity.hide(); judgeScoreStates.splice(i, 1); judgeScorePool.push(fx); }
+				else fx.entity.modified();
+			}
+			for (let i = 0; i < judgeAwardFx.length; ++i) {
+				const fx = judgeAwardFx[i];
+				if (fx.left <= 0) continue;
+				fx.left -= dt;
+				const progress = clamp((fx.duration - fx.left) / fx.duration, 0, 1);
+				fx.entity.y = fx.startY - 18 * progress;
+				fx.entity.opacity = clamp(Math.min(progress * 6, fx.left / 0.3), 0, 1);
+				if (fx.left <= 0) fx.entity.hide();
 				else fx.entity.modified();
 			}
 			if (turnFxLeft > 0) {
@@ -1551,15 +1743,13 @@ function main(param) {
 				if (competitionFxLeft <= 0) competitionFx.hide();
 				competitionFx.modified();
 			}
-			for (let i = scoreTransferStates.length - 1; i >= 0; --i) {
-				const fx = scoreTransferStates[i];
-				fx.left -= dt;
-				const progress = clamp((0.72 - fx.left) / 0.72, 0, 1);
-				const eased = 1 - Math.pow(1 - progress, 2);
-				fx.entity.x = fx.startX + (fx.endX - fx.startX) * eased;
-				fx.entity.y = fx.startY + (fx.endY - fx.startY) * eased - Math.sin(progress * Math.PI) * 54;
-				fx.entity.opacity = clamp(fx.left / 0.16, 0, 1);
-				if (fx.left <= 0) { fx.entity.hide(); scoreTransferStates.splice(i, 1); scoreTransferPool.push(fx); } else fx.entity.modified();
+			if (choiceFxLeft > 0) {
+				choiceFxLeft -= dt;
+				const progress = clamp((1.25 - choiceFxLeft) / 1.25, 0, 1);
+				choiceFx.y = choiceFxBaseY - 8 * progress;
+				choiceFx.opacity = clamp(Math.min(progress * 6, choiceFxLeft / 0.24), 0, 1);
+				if (choiceFxLeft <= 0) choiceFx.hide();
+				else choiceFx.modified();
 			}
 			for (let specialIndex = specialEffects.length - 1; specialIndex >= 0; --specialIndex) {
 				const special = specialEffects[specialIndex];
