@@ -252,7 +252,7 @@ function createTitleUi(param) {
 	rect(recommendationToggle, 8, 8, 264, 50, "#10243a", 0.78);
 	label(recommendationToggle, "おすすめ表示", 20, 3, 20, "#54d9ff");
 	const recommendationStatusLabel = label(recommendationToggle, "現在 ON", 260, 3, 20, "#9be44f", { anchorX: 1 });
-	label(recommendationToggle, "OFF時：ボーナス加算", 140, 33, 24, "#ffd85d", { anchorX: 0.5 });
+	label(recommendationToggle, "OFF時：クリアボーナス", 140, 33, 24, "#ffd85d", { anchorX: 0.5 });
 	recommendationToggle.onPointDown.add(function () {
 		playSelectSe();
 		recommendationEnabled = !recommendationEnabled;

@@ -465,7 +465,7 @@ function main(param) {
 		// Action console. Keep the timing display above the touchable controls so a
 		// player's hand does not cover it; the upward-pointing instruction sits below.
 		const controls = createPanel(scene, scene, 12, 562, 986, 146, "#0c0812", C.line, 1);
-		const judgmentLabel = createLabel(scene, controls, f20, "▲タイミングよくいずれかのアクションを選択", 493, 115, C.gold, { anchorX: 0.5 });
+		const judgmentLabel = createLabel(scene, controls, f20, "▲PERFECTを狙っていずれかのアクションを選択", 493, 115, C.gold, { anchorX: 0.5 });
 		const timingX = 28, timingY = 7, timingW = 930;
 		const zoneNames = ["BAD", "NORMAL", "GOOD", "PERFECT", "GOOD", "NORMAL", "BAD"];
 		const timingZones = [];
@@ -741,7 +741,7 @@ function main(param) {
 				tutorialTextLabel.y = 16;
 				tutorialTextLabel.modified();
 				updateLabel(tutorialStepLabel, "SPECIAL", C.gold);
-				updateLabel(tutorialTextLabel, "全審査員へ一気に大アピール！タイミングよく押そう！");
+				updateLabel(tutorialTextLabel, "全審査員へ一気に大アピール！PERFECTを狙おう！");
 			}
 			// The highlight is decorative, so update it at 10 fps instead of forcing
 			// dozens of entity redraws on every 30 fps game frame.
@@ -862,13 +862,13 @@ function main(param) {
 			const recommended = active ? currentRecommendedActionIndex() : -1;
 			for (let i = 0; i < actionUi.length; ++i) updateVisibility(actionUi[i].recommendFrame, i === recommended);
 			if (phase === "play" && !playerActed && playerSpecialTurn) {
-				updateLabel(judgmentLabel, "▲タイミングよくSPECIALを選択", C.gold);
+				updateLabel(judgmentLabel, "▲PERFECTを狙ってSPECIALを選択", C.gold);
 			} else if (active && recommended >= 0) {
-				updateLabel(judgmentLabel, "▲おすすめ：" + actions[recommended].label + "  光るボタンをタイミングよく選択", C.gold);
+				updateLabel(judgmentLabel, "▲おすすめ：" + actions[recommended].label + "  PERFECTを狙って選択", C.gold);
 			} else if (active) {
 				updateLabel(judgmentLabel, "▲審査員交代中　次ターンに備えよう", C.muted);
 			} else {
-				updateLabel(judgmentLabel, "▲タイミングよくいずれかのアクションを選択", C.gold);
+				updateLabel(judgmentLabel, "▲PERFECTを狙っていずれかのアクションを選択", C.gold);
 			}
 			if (recommended < 0) { recommendPulseTick = -1; return; }
 			const nextTick = Math.floor(turnElapsed * 10);
@@ -912,8 +912,10 @@ function main(param) {
 			}
 			return rankingCache;
 		}
-		function recommendationOffBonus() { return recommendationEnabled ? 0 : RECOMMENDATION_OFF_BONUSES[selectedStageIndex]; }
-		function liveRankingScore() { return Math.max(0, Math.floor(scores[0] * currentStage.scoreMultiplier) + recommendationOffBonus()); }
+		function recommendationOffClearBonus(qualified) {
+			return !qualified || recommendationEnabled ? 0 : RECOMMENDATION_OFF_BONUSES[selectedStageIndex];
+		}
+		function liveRankingScore() { return Math.max(0, Math.floor(scores[0] * currentStage.scoreMultiplier)); }
 		function syncLiveRankingScore() { g.game.vars.gameState.score = liveRankingScore(); }
 		function addActorScore(actorIndex, value) {
 			scores[actorIndex] += value;
@@ -1214,7 +1216,7 @@ function main(param) {
 				setActorMotion(i, "idle", false);
 			}
 			preparePlans(); updateTrendUi();
-			judgmentLabel.text = playerSpecialTurn ? "▲タイミングよくSPECIALを選択" : "▲タイミングよくいずれかのアクションを選択";
+			judgmentLabel.text = playerSpecialTurn ? "▲PERFECTを狙ってSPECIALを選択" : "▲PERFECTを狙っていずれかのアクションを選択";
 			judgmentLabel.textColor = C.gold;
 			judgmentLabel.invalidate();
 		}
@@ -1224,7 +1226,7 @@ function main(param) {
 			if (phase !== "play" || playerActed || playerSpecialTurn || !isPlayerVoltageFull()) return;
 			playerSpecialTurn = true;
 			startSpecialTutorialIfNeeded();
-			judgmentLabel.text = "▲タイミングよくSPECIALを選択";
+			judgmentLabel.text = "▲PERFECTを狙ってSPECIALを選択";
 			judgmentLabel.invalidate();
 		}
 
@@ -1612,7 +1614,7 @@ function main(param) {
 			const playerRank = rank.indexOf(0) + 1;
 			const qualified = playerRank <= currentStage.clearRank;
 			const coefficient = clearCoefficient(playerRank);
-			const offBonus = recommendationOffBonus();
+			const offBonus = recommendationOffClearBonus(qualified);
 			const registeredScore = Math.max(0, Math.floor(scores[0] * currentStage.scoreMultiplier * coefficient) + offBonus);
 			g.game.vars.gameState.score = registeredScore;
 			const resultMe = scene.asset.getAudioById(qualified ? "me_victory" : "me_defeat").play();
@@ -1641,7 +1643,7 @@ function main(param) {
 			p.append(new g.FilledRect({ scene: scene, x: 18, y: 500, width: 542, height: 114, cssColor: "#261133", opacity: 0.92 }));
 			createLabel(scene, p, f25, "YOUR SCORE", 289, 510, "#fff", { anchorX: 0.5 });
 			createLabel(scene, p, f42, format(registeredScore) + " pt", 289, 548, C.gold, { anchorX: 0.5 });
-			if (offBonus > 0) createLabel(scene, p, f20, "おすすめOFF ボーナス +" + format(offBonus) + "pt 加算済み", 289, 590, C.cyan, { anchorX: 0.5 });
+			if (offBonus > 0) createLabel(scene, p, f20, "おすすめOFF クリアボーナス +" + format(offBonus) + "pt", 289, 590, C.cyan, { anchorX: 0.5 });
 
 			const dialogue = getResultDialogue(selectedStageIndex, playerRank, qualified);
 			resultLayer.append(new g.Sprite({ scene: scene, src: scene.asset.getImageById("speech_bubble"), x: 638, y: 36, width: 610, height: 183 }));
@@ -1691,7 +1693,7 @@ function main(param) {
 			if (phase === "title") return;
 			if (phase === "ready") {
 				readyLeft -= dt;
-				updateLabel(judgmentLabel, "▲タイミングよくいずれかのアクションを選択", C.gold);
+				updateLabel(judgmentLabel, "▲PERFECTを狙っていずれかのアクションを選択", C.gold);
 				if (readyLeft <= 0) { phase = "play"; startStageBgm(currentStage.bgm); startTurn(); }
 				refreshHud(); return;
 			}
