@@ -139,7 +139,7 @@ function createTitleUi(param) {
 		width: 610,
 		height: 183
 	}));
-	label(titlePage, "あんたは私のコーチだよ！\nステージを選んで、\n最高の私を引き出してくれ！", 625, 42, 24, "#fff", { width: 530, lineBreak: true });
+	label(titlePage, "あんたは私のコーチだよ！\n初めてなら予選がおすすめ！\nチュートリアルをONにして始めよう！", 625, 42, 24, "#fff", { width: 530, lineBreak: true });
 
 	// A dedicated portrait panel makes the lower crop look intentional.
 	const portraitFrame = framedPanel(titlePage, 920, 178, 332, 402, "#080916", "#ff5aa8");

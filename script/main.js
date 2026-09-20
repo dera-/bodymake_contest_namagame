@@ -512,14 +512,16 @@ function main(param) {
 			repeatBadge.append(new g.FilledRect({ scene: scene, width: 144, height: 32, cssColor: "#09050d" }));
 			button.append(repeatBadge);
 			const repeat = createLabel(scene, repeatBadge, f16, "", 0, 2, C.danger, { width: 144, textAlign: g.TextAlign.Center });
-			const recommendFrame = new g.E({ scene: scene, x: -4, y: -4, width: 228, height: 86, hidden: true });
-			const recommendGlow = new g.FilledRect({ scene: scene, width: 228, height: 86, cssColor: C.gold, opacity: 0.12 });
+			const recommendFrame = new g.E({ scene: scene, x: -4, y: 0, width: 228, height: 78, hidden: true });
+			const recommendGlow = new g.FilledRect({ scene: scene, width: 228, height: 78, cssColor: C.gold, opacity: 0.25 });
 			recommendFrame.append(recommendGlow);
-			recommendFrame.append(new g.FilledRect({ scene: scene, width: 228, height: 5, cssColor: C.gold }));
-			recommendFrame.append(new g.FilledRect({ scene: scene, y: 81, width: 228, height: 5, cssColor: C.gold }));
-			recommendFrame.append(new g.FilledRect({ scene: scene, width: 5, height: 86, cssColor: C.gold }));
-			recommendFrame.append(new g.FilledRect({ scene: scene, x: 223, width: 5, height: 86, cssColor: C.gold }));
-			createLabel(scene, recommendFrame, f20, "★", 214, 4, "#fff", { anchorX: 1 });
+			recommendFrame.append(new g.FilledRect({ scene: scene, width: 228, height: 7, cssColor: C.gold }));
+			recommendFrame.append(new g.FilledRect({ scene: scene, y: 71, width: 228, height: 7, cssColor: C.gold }));
+			recommendFrame.append(new g.FilledRect({ scene: scene, width: 7, height: 78, cssColor: C.gold }));
+			recommendFrame.append(new g.FilledRect({ scene: scene, x: 221, width: 7, height: 78, cssColor: C.gold }));
+			recommendFrame.append(new g.FilledRect({ scene: scene, x: 7, y: 7, width: 214, height: 2, cssColor: "#fff" }));
+			recommendFrame.append(new g.FilledRect({ scene: scene, x: 7, y: 69, width: 214, height: 2, cssColor: "#fff" }));
+			createLabel(scene, recommendFrame, f20, "★", 214, 7, "#fff", { anchorX: 1 });
 			button.append(recommendFrame);
 			controls.append(button);
 			actionUi.push({
@@ -875,7 +877,7 @@ function main(param) {
 			if (recommendPulseTick === nextTick) return;
 			recommendPulseTick = nextTick;
 			const pulse = (Math.sin((nextTick / 10) * Math.PI * 3) + 1) / 2;
-			updateOpacity(actionUi[recommended].recommendGlow, 0.10 + pulse * 0.18);
+			updateOpacity(actionUi[recommended].recommendGlow, 0.20 + pulse * 0.18);
 		}
 		function showPlayerChoiceFeedback(actionIndex, special, scoreGain, repeatMod, judgePresenceMask) {
 			let reason, accent = C.cyan;
@@ -915,13 +917,12 @@ function main(param) {
 		function recommendationOffClearBonus(qualified) {
 			return !qualified || recommendationEnabled ? 0 : RECOMMENDATION_OFF_BONUSES[selectedStageIndex];
 		}
-		function liveRankingScore() { return Math.max(0, Math.floor(scores[0] * currentStage.scoreMultiplier)); }
-		function syncLiveRankingScore() { g.game.vars.gameState.score = liveRankingScore(); }
+		function syncCurrentScore() { g.game.vars.gameState.score = scores[0]; }
 		function addActorScore(actorIndex, value) {
 			scores[actorIndex] += value;
 			rankingDirty = true;
 			rankingHudDirty = true;
-			if (actorIndex === 0) syncLiveRankingScore();
+			if (actorIndex === 0) syncCurrentScore();
 		}
 		function competitionSnapshot() {
 			const rank = ranking();
@@ -1259,7 +1260,7 @@ function main(param) {
 			selectedPlayerAction = -1; cursorHoldPosition = 0; cursorLivePosition = 0; lastTurnMiss = false;
 			turnFxLeft = 0; choiceFxLeft = 0; competitionReady = false; scoreSaved = false; aiSpecialCounts = [0, 0, 0, 0, 0, 0];
 			recommendationDirty = true; recommendedActionCache = -1; recommendPulseTick = -1;
-			syncLiveRankingScore();
+			syncCurrentScore();
 
 			for (let i = 0; i < judges.length; ++i) {
 				const gauge = levelGauge(1);
@@ -1572,6 +1573,10 @@ function main(param) {
 			updateVisibility(specialButton, playerSpecialTurn);
 			updateOpacity(specialButton, phase === "play" && !playerActed ? 1 : 0.36);
 			updateActionRecommendation();
+			if (recommendationEnabled && phase === "play" && !playerActed && !playerSpecialTurn) {
+				const recommended = currentRecommendedActionIndex();
+				if (recommended >= 0) updateOpacity(actionUi[recommended].base, 1);
+			}
 			updateTutorialVisuals();
 		}
 

@@ -457,28 +457,28 @@
 			"path": "audio/bgm_opening",
 			"systemId": "music",
 			"loop": true,
-			"duration": 164054
+			"duration": 30000
 		},
 		"bgm_preliminary": {
 			"type": "audio",
 			"path": "audio/bgm_preliminary",
 			"systemId": "music",
 			"loop": false,
-			"duration": 90000
+			"duration": 100000
 		},
 		"bgm_semifinal": {
 			"type": "audio",
 			"path": "audio/bgm_semifinal",
 			"systemId": "music",
 			"loop": false,
-			"duration": 90000
+			"duration": 100000
 		},
 		"bgm_final": {
 			"type": "audio",
 			"path": "audio/bgm_final",
 			"systemId": "music",
 			"loop": false,
-			"duration": 90000
+			"duration": 100000
 		},
 		"me_victory": {
 			"type": "audio",
