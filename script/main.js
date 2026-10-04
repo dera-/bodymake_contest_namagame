@@ -579,16 +579,29 @@ function main(param) {
 		const competitionFxSub = createLabel(scene, competitionFx, f20, "", 246, 39, C.gold, { anchorX: 0.5 });
 		scene.append(competitionFx);
 
-		// Compact cause-and-result feedback in the otherwise unused center of the
-		// stage header. Timing quality remains on the contestant as an image, while
-		// this line explains the action choice and the resulting score.
-		const choiceFxBaseY = 168;
-		const choiceFx = new g.E({ scene: scene, x: 258, y: choiceFxBaseY, width: 492, height: 42, hidden: true });
-		const choiceFxBg = new g.FilledRect({ scene: scene, width: 492, height: 42, cssColor: "#13091d", opacity: 0.94 });
-		const choiceFxTop = new g.FilledRect({ scene: scene, width: 492, height: 4, cssColor: C.gold });
+		// Keep the player's cause-and-result feedback visible until the next turn.
+		// A larger framed panel separates the chosen action/reason from the score.
+		const choiceFxBaseY = 164;
+		const choiceFxWidth = 616;
+		const choiceFxHeight = 72;
+		const choiceFxBorder = 5;
+		const choiceFx = new g.E({ scene: scene, x: 196, y: choiceFxBaseY, width: choiceFxWidth, height: choiceFxHeight, hidden: true });
+		const choiceFxGlow = new g.FilledRect({ scene: scene, x: -5, y: -5, width: choiceFxWidth + 10, height: choiceFxHeight + 10, cssColor: C.gold, opacity: 0.24 });
+		const choiceFxBg = new g.FilledRect({ scene: scene, width: choiceFxWidth, height: choiceFxHeight, cssColor: "#13091d", opacity: 0.97 });
+		const choiceFxTop = new g.FilledRect({ scene: scene, width: choiceFxWidth, height: choiceFxBorder, cssColor: C.gold });
+		const choiceFxBottom = new g.FilledRect({ scene: scene, y: choiceFxHeight - choiceFxBorder, width: choiceFxWidth, height: choiceFxBorder, cssColor: C.gold });
+		const choiceFxLeftEdge = new g.FilledRect({ scene: scene, width: choiceFxBorder, height: choiceFxHeight, cssColor: C.gold });
+		const choiceFxRightEdge = new g.FilledRect({ scene: scene, x: choiceFxWidth - choiceFxBorder, width: choiceFxBorder, height: choiceFxHeight, cssColor: C.gold });
+		choiceFx.append(choiceFxGlow);
 		choiceFx.append(choiceFxBg);
 		choiceFx.append(choiceFxTop);
-		const choiceFxLabel = createLabel(scene, choiceFx, f20, "", 246, 7, "#fff", { anchorX: 0.5 });
+		choiceFx.append(choiceFxBottom);
+		choiceFx.append(choiceFxLeftEdge);
+		choiceFx.append(choiceFxRightEdge);
+		const choiceFxLabel = createLabel(scene, choiceFx, f25, "", 20, 9, "#fff");
+		const choiceFxScoreLabel = createLabel(scene, choiceFx, f25, "", choiceFxWidth - 22, 9, C.gold, { anchorX: 1 });
+		// Reserve a separate second row for the 24 px award breakdown.
+		const choiceFxAwardLabel = createLabel(scene, choiceFx, f16, "", choiceFxWidth - 22, 40, C.pink, { anchorX: 1 });
 		scene.append(choiceFx);
 
 		// The preliminary tutorial points at the live UI instead of stopping play
@@ -647,7 +660,8 @@ function main(param) {
 		let playerVoltage = 0, playerSpecials = 0, combo = 0;
 		let lastPlayerAction = -1, repeatCount = 0;
 		let selectedPlayerAction = -1, cursorHoldPosition = 0, cursorLivePosition = 0, lastTurnMiss = false;
-		let turnFxLeft = 0, competitionFxLeft = 0, competitionFxDuration = 0, choiceFxLeft = 0, competitionReady = false, scoreSaved = false;
+		let playerChoiceFeedback = null;
+		let turnFxLeft = 0, competitionFxLeft = 0, competitionFxDuration = 0, choiceFxAttentionLeft = 0, competitionReady = false, scoreSaved = false;
 		let aiSpecialCounts = [0, 0, 0, 0, 0, 0];
 		let activeAiSpecialTurns = currentStage.aiSpecialTurns;
 		let tutorialEnabled = false, tutorialStep = 0, tutorialSpecialView = false, tutorialPulseTick = -1;
@@ -879,7 +893,38 @@ function main(param) {
 			const pulse = (Math.sin((nextTick / 10) * Math.PI * 3) + 1) / 2;
 			updateOpacity(actionUi[recommended].recommendGlow, 0.20 + pulse * 0.18);
 		}
-		function showPlayerChoiceFeedback(actionIndex, special, scoreGain, repeatMod, judgePresenceMask) {
+		function summarizePlayerAwards(awards) {
+			let topCount = 0, lastCount = 0;
+			for (let i = 0; i < awards.length; ++i) {
+				if (awards[i].topActor === 0) ++topCount;
+				if (awards[i].lastActor === 0) ++lastCount;
+			}
+			return { topCount: topCount, lastCount: lastCount, score: topCount * 1000 + lastCount * 500 };
+		}
+		function refreshPlayerChoiceScoreFeedback(withAttention) {
+			if (!playerChoiceFeedback) return;
+			updateLabel(choiceFxScoreLabel, "獲得 +" + format(playerChoiceFeedback.scoreGain) + "pt", playerChoiceFeedback.scoreGain > 0 ? C.gold : C.danger);
+			const awardParts = [];
+			if (playerChoiceFeedback.topCount > 0) awardParts.push("TOP" + (playerChoiceFeedback.topCount > 1 ? "×" + playerChoiceFeedback.topCount : "") + " +" + format(playerChoiceFeedback.topCount * 1000));
+			if (playerChoiceFeedback.lastCount > 0) awardParts.push("LAST" + (playerChoiceFeedback.lastCount > 1 ? "×" + playerChoiceFeedback.lastCount : "") + " +" + format(playerChoiceFeedback.lastCount * 500));
+			updateLabel(choiceFxAwardLabel, awardParts.join(" / "), C.pink);
+			updateVisibility(choiceFxAwardLabel, awardParts.length > 0);
+			if (!withAttention) return;
+			choiceFxAttentionLeft = 0.36;
+			choiceFx.scaleX = 1.035; choiceFx.scaleY = 1.035;
+			choiceFxGlow.opacity = 0.34;
+			choiceFxGlow.modified(); choiceFx.modified();
+		}
+		function addPlayerJudgeAwardToChoiceFeedback(award) {
+			if (!playerChoiceFeedback) return;
+			let added = 0;
+			if (award.topActor === 0) { ++playerChoiceFeedback.topCount; added += 1000; }
+			if (award.lastActor === 0) { ++playerChoiceFeedback.lastCount; added += 500; }
+			if (added <= 0) return;
+			playerChoiceFeedback.scoreGain += added;
+			refreshPlayerChoiceScoreFeedback(true);
+		}
+		function showPlayerChoiceFeedback(actionIndex, special, scoreGain, repeatMod, judgePresenceMask, awards) {
 			let reason, accent = C.cyan;
 			const activeJudgeCount = (judgePresenceMask & 1 ? 1 : 0) + (judgePresenceMask & 2 ? 1 : 0) + (judgePresenceMask & 4 ? 1 : 0);
 			if (activeJudgeCount === 0) {
@@ -898,14 +943,24 @@ function main(param) {
 			}
 			const actionName = special ? "SPECIAL" : actions[actionIndex].label;
 			choiceFxBg.cssColor = accent === C.danger ? "#35101d" : "#10243a";
+			choiceFxGlow.cssColor = accent;
 			choiceFxTop.cssColor = accent;
-			choiceFxBg.modified(); choiceFxTop.modified();
-			updateLabel(choiceFxLabel, actionName + "  " + reason + "  +" + format(scoreGain) + "pt", accent);
-			choiceFxLeft = 1.25;
+			choiceFxBottom.cssColor = accent;
+			choiceFxLeftEdge.cssColor = accent;
+			choiceFxRightEdge.cssColor = accent;
+			choiceFxBg.modified(); choiceFxGlow.modified(); choiceFxTop.modified(); choiceFxBottom.modified();
+			choiceFxLeftEdge.modified(); choiceFxRightEdge.modified();
+			updateLabel(choiceFxLabel, actionName + "  " + reason, accent);
+			const awardSummary = summarizePlayerAwards(awards);
+			playerChoiceFeedback = {
+				scoreGain: scoreGain,
+				topCount: awardSummary.topCount,
+				lastCount: awardSummary.lastCount
+			};
 			choiceFx.y = choiceFxBaseY;
 			choiceFx.opacity = 1;
 			if (!choiceFx.visible()) choiceFx.show();
-			choiceFx.modified();
+			refreshPlayerChoiceScoreFeedback(true);
 		}
 		function ranking() {
 			if (rankingDirty) {
@@ -1197,6 +1252,10 @@ function main(param) {
 
 		function startTurn() {
 			++turn; turnElapsed = 0; playerActed = false; midpointCommented = false;
+			playerChoiceFeedback = null;
+			choiceFxAttentionLeft = 0;
+			choiceFx.scaleX = 1; choiceFx.scaleY = 1; choiceFx.opacity = 1;
+			if (choiceFx.visible()) choiceFx.hide();
 			recommendationDirty = true;
 			specialTutorialActive = false;
 			selectedPlayerAction = -1; cursorHoldPosition = 0; cursorLivePosition = 0;
@@ -1258,7 +1317,8 @@ function main(param) {
 			setPlayerVoltage(0); playerSpecials = 0; combo = 0; timingDifficulty = 0;
 			lastPlayerAction = -1; repeatCount = 0;
 			selectedPlayerAction = -1; cursorHoldPosition = 0; cursorLivePosition = 0; lastTurnMiss = false;
-			turnFxLeft = 0; choiceFxLeft = 0; competitionReady = false; scoreSaved = false; aiSpecialCounts = [0, 0, 0, 0, 0, 0];
+			playerChoiceFeedback = null;
+			turnFxLeft = 0; choiceFxAttentionLeft = 0; competitionReady = false; scoreSaved = false; aiSpecialCounts = [0, 0, 0, 0, 0, 0];
 			recommendationDirty = true; recommendedActionCache = -1; recommendPulseTick = -1;
 			syncCurrentScore();
 
@@ -1294,6 +1354,7 @@ function main(param) {
 			if (lastActor === 0) addPlayerVoltage(9);
 			const award = { judgeIndex: index, topActor: topActor, lastActor: lastActor };
 			showJudgeAwardFeedback(award);
+			addPlayerJudgeAwardToChoiceFeedback(award);
 			return award;
 		}
 
@@ -1498,7 +1559,7 @@ function main(param) {
 			setActorState(0, true);
 			playActorAnimation(0, actionIndex, special);
 			showActionResult(0, timing.name);
-			showPlayerChoiceFeedback(actionIndex, special, playerScoreGain, repeatMod, judgePresenceMask);
+			showPlayerChoiceFeedback(actionIndex, special, playerScoreGain, repeatMod, judgePresenceMask, appealResult.awards);
 		}
 
 		function resolveMiss() {
@@ -1750,13 +1811,16 @@ function main(param) {
 				if (competitionFxLeft <= 0) competitionFx.hide();
 				competitionFx.modified();
 			}
-			if (choiceFxLeft > 0) {
-				choiceFxLeft -= dt;
-				const progress = clamp((1.25 - choiceFxLeft) / 1.25, 0, 1);
-				choiceFx.y = choiceFxBaseY - 8 * progress;
-				choiceFx.opacity = clamp(Math.min(progress * 6, choiceFxLeft / 0.24), 0, 1);
-				if (choiceFxLeft <= 0) choiceFx.hide();
-				else choiceFx.modified();
+			if (choiceFxAttentionLeft > 0) {
+				choiceFxAttentionLeft -= dt;
+				const progress = clamp((0.36 - choiceFxAttentionLeft) / 0.36, 0, 1);
+				const scale = 1 + 0.035 * (1 - progress);
+				choiceFx.scaleX = scale; choiceFx.scaleY = scale;
+				choiceFxGlow.opacity = 0.18 + 0.16 * (1 - progress);
+				if (choiceFxAttentionLeft <= 0) {
+					choiceFx.scaleX = 1; choiceFx.scaleY = 1; choiceFxGlow.opacity = 0.18;
+				}
+				choiceFxGlow.modified(); choiceFx.modified();
 			}
 			for (let specialIndex = specialEffects.length - 1; specialIndex >= 0; --specialIndex) {
 				const special = specialEffects[specialIndex];
